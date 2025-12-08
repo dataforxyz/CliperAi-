@@ -1,0 +1,7 @@
+- [ ] make a fully install download in make. currently there is a lot of things that is only downloaded as needed. which is anoying if you want the full thing. like if you were building a docer and some things had to reddownload each time. 
+- [ ] show a clicable link for the finished video
+- [ ] dont ship aicdmx logo in assets ship a demo logo. 
+- [] make it so i can pass it all as terminal vars. so i just run a script with things presetup and it just does start to finish.
+- [ ] need a way to easily double check and fix the captions
+- [] need a way to not do clipping other then to remove preamble or post amble. like words in the beging not needed or just dead space. 
+- [ ] right now videos must be in the downloads folder. so we need to make it copy the local files to there or allow files from anywhere
