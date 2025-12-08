@@ -21,6 +21,7 @@ logs/
 
 # Archivos de audio/video procesados
 *.mp4
+*.MP4
 *.mp3
 *.wav
 *.avi
