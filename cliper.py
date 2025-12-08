@@ -474,10 +474,10 @@ def opcion_transcribir_video(video: Dict, state_manager):
     model_options.add_column(style="white")
     model_options.add_column(style="dim")
 
-    model_options.add_row("[t]iny", "Fastest", "~1min for 1hr video")
-    model_options.add_row("[b]ase", "Balanced", "~5min for 1hr video")
-    model_options.add_row("[s]mall", "Accurate", "~10min for 1hr video")
-    model_options.add_row("[m]edium", "Very accurate", "~20min for 1hr video")
+    model_options.add_row("\\[t]iny", "Fastest", "~1min for 1hr video")
+    model_options.add_row("\\[b]ase", "Balanced", "~5min for 1hr video")
+    model_options.add_row("\\[s]mall", "Accurate", "~10min for 1hr video")
+    model_options.add_row("\\[m]edium", "Very accurate", "~20min for 1hr video")
 
     console.print(model_options)
     console.print()
