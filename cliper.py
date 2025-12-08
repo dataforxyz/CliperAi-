@@ -93,9 +93,12 @@ def escanear_videos() -> List[Dict[str, str]]:
         downloads_dir.mkdir(parents=True, exist_ok=True)
         return []
 
-    # Busco todos los archivos .mp4
+    # Busco todos los archivos .mp4 (case-insensitive: .mp4 y .MP4)
     videos = []
-    for video_file in downloads_dir.glob("*.mp4"):
+    # Combinamos ambos patrones para cubrir mayúsculas y minúsculas
+    video_files = set(downloads_dir.glob("*.mp4")) | set(downloads_dir.glob("*.MP4"))
+    
+    for video_file in video_files:
         # Genero un ID único para el video (el nombre sin extensión)
         video_id = video_file.stem  # "AI CDMX Live Stream_gjPVlCHU9OM"
 
@@ -217,19 +220,28 @@ def opcion_descargar_video(downloader, state_manager):
     mostrar_banner()
 
     console.print(Panel(
-        "[bold]Download New Video[/bold]\nProvide a YouTube URL to download",
+        "[bold]Add Video[/bold]\nProvide a YouTube URL or local file path",
         border_style="cyan"
     ))
     console.print()
 
-    url = Prompt.ask("[cyan]YouTube URL[/cyan]").strip()
+    input_str = Prompt.ask("[cyan]YouTube URL or file path[/cyan]").strip()
 
-    if not url:
-        console.print("[red]Error: No URL provided[/red]")
+    if not input_str:
+        console.print("[red]Error: No input provided[/red]")
         Prompt.ask("\n[dim]Press ENTER to continue[/dim]", default="")
         return
 
-    # Pregunto por el tipo de contenido
+    # Detect if it's a URL or local file
+    is_url = input_str.startswith(('http://', 'https://', 'www.', 'youtube.com', 'youtu.be'))
+    is_local = not is_url and Path(input_str).exists() and Path(input_str).is_file()
+
+    if not is_url and not is_local:
+        console.print("[red]Error: Invalid input - not a valid URL or existing file path[/red]")
+        Prompt.ask("\n[dim]Press ENTER to continue[/dim]", default="")
+        return
+
+    # Ask for content type
     console.print()
     console.print("[bold]Content Type[/bold]")
     console.print("[dim]This helps optimize transcription and clip generation[/dim]\n")
@@ -251,7 +263,7 @@ def opcion_descargar_video(downloader, state_manager):
     content_choice = Prompt.ask(
         "[cyan]Select content type[/cyan]",
         choices=[str(i) for i in range(1, len(presets) + 1)],
-        default="3"  # Livestream es común
+        default="3"
     )
 
     content_type = preset_keys[int(content_choice) - 1]
@@ -263,48 +275,60 @@ def opcion_descargar_video(downloader, state_manager):
     console.print()
 
     try:
-        with console.status("[cyan]Downloading video...[/cyan]", spinner="dots"):
-            path = downloader.download(url, quality="best")
+        path = None
 
-        if path:
-            # Registro el video en el state manager con metadata de contenido
-            video_file = Path(path)
-            video_id = video_file.stem
+        if is_url:
+            # Download from YouTube
+            with console.status("[cyan]Downloading video...[/cyan]", spinner="dots"):
+                path = downloader.download(input_str, quality="best")
 
-            state_manager.register_video(
-                video_id,
-                video_file.name,
-                content_type=content_type,  # Guardamos el tipo de contenido
-                preset=preset  # Y el preset completo
-            )
-
-            console.print(Panel(
-                f"[green]✓ Video downloaded successfully[/green]\n\n"
-                f"File: {video_file.name}\n"
-                f"Location: {path}",
-                title="[bold green]Success[/bold green]",
-                border_style="green"
-            ))
-
-            # Pregunto si quiere continuar con transcripción
-            console.print()
-            if Confirm.ask("[cyan]Would you like to transcribe this video now?[/cyan]"):
-                # Creo el dict de video para pasarlo a la función
-                video_dict = {
-                    'filename': video_file.name,
-                    'path': path,
-                    'video_id': video_id
-                }
-                opcion_transcribir_video(video_dict, state_manager)
-                return  # Retorno para que no pida ENTER dos veces
+            if not path:
+                console.print(Panel(
+                    "[red]Download failed. Check the logs above.[/red]",
+                    border_style="red"
+                ))
+                console.print()
+                Prompt.ask("[dim]Press ENTER to return to menu[/dim]", default="")
+                return
         else:
-            console.print(Panel(
-                "[red]Download failed. Check the logs above.[/red]",
-                border_style="red"
-            ))
+            # Use local file
+            path = str(Path(input_str).absolute())
+
+        # Register the video
+        video_file = Path(path)
+        video_id = video_file.stem
+
+        state_manager.register_video(
+            video_id,
+            video_file.name,
+            content_type=content_type,
+            preset=preset
+        )
+
+        console.clear()
+        mostrar_banner()
+
+        console.print(Panel(
+            f"[green]✓ Video added successfully[/green]\n\n"
+            f"File: {video_file.name}\n"
+            f"Location: {path}",
+            title="[bold green]Success[/bold green]",
+            border_style="green"
+        ))
+
+        # Ask if they want to transcribe now
+        console.print()
+        if Confirm.ask("[cyan]Would you like to transcribe this video now?[/cyan]"):
+            video_dict = {
+                'filename': video_file.name,
+                'path': path,
+                'video_id': video_id
+            }
+            opcion_transcribir_video(video_dict, state_manager)
+            return
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Download cancelled by user[/yellow]")
+        console.print("\n[yellow]Operation cancelled by user[/yellow]")
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")
 
