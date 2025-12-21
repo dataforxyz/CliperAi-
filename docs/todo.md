@@ -3,5 +3,13 @@
 - [ ] dont ship aicdmx logo in assets ship a demo logo. 
 - [] make it so i can pass it all as terminal vars. so i just run a script with things presetup and it just does start to finish.
 - [ ] need a way to easily double check and fix the captions
-- [] need a way to not do clipping other then to remove preamble or post amble. like words in the beging not needed or just dead space. 
+- [ ] identify and add multiple human in the loop points
+- [ ] need a way to not do clipping other then to remove preamble or post amble. like words in the beging not needed or just dead space. 
 - [ ] right now videos must be in the downloads folder. so we need to make it copy the local files to there or allow files from anywhere
+- [ ] bulk process. so we do the same thing for a bunch of selected videos
+- [ ] make it so we dont have to put the videos in  a specific folder to process. we should be able to select any video and just process 
+- [ ] add a way to set output folder. for batching we should place the whole batch in a sub folder of that. 
+- [ ] make a prompts folder. we should keep all the prompts i md files
+- [ ] add system to pick font, color and size for subitles
+- [ ] add subtitle control. allowing for how things are split by ch and word both. so max and min ch and words
+- [ ] add some subtitle "types" so one would be like 1 word a time, another would be only important words. another would be multiple words but highlight the current word. in a specified color
