@@ -142,3 +142,4 @@ settings.local.py
 # Archivos de usuario específicos
 user_config.json
 local_settings.json
+.rover/
