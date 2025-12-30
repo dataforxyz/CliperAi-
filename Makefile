@@ -1,4 +1,4 @@
-.PHONY: help install-make build dev prod start stop down restart logs shell clean ps test format lint
+.PHONY: help install-make build dev prod start stop down restart logs shell clean ps test format lint bump bump-patch bump-minor bump-major
 
 # Default target - show help
 help:
@@ -30,6 +30,7 @@ help:
 	@echo "  make test           Run tests inside container"
 	@echo "  make format         Format code with black and isort"
 	@echo "  make lint           Run code linting"
+	@echo "  make bump PART=patch   Bump pyproject version (patch|minor|major)"
 	@echo ""
 	@echo "📝 Usage Examples:"
 	@echo "  make build && make dev    # Build and start development"
@@ -145,6 +146,25 @@ lint:
 	docker-compose exec cliper uv run isort --check .
 	docker-compose exec cliper uv run mypy src/
 	@echo "✅ Linting complete!"
+
+# Bump project version (updates pyproject.toml)
+# Examples:
+#   make bump PART=patch
+#   make bump PART=minor
+#   make bump PART=major
+bump:
+	@PART=$${PART:-patch}; \
+	echo "🔖 Bumping version ($$PART)..."; \
+	docker-compose exec cliper uv run bump2version $$PART
+
+bump-patch:
+	@$(MAKE) bump PART=patch
+
+bump-minor:
+	@$(MAKE) bump PART=minor
+
+bump-major:
+	@$(MAKE) bump PART=major
 
 # Quick rebuild (clean + build + dev)
 rebuild: clean build dev

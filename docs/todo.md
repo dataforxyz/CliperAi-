@@ -13,3 +13,4 @@
 - [ ] add system to pick font, color and size for subitles
 - [ ] add subtitle control. allowing for how things are split by ch and word both. so max and min ch and words
 - [ ] add some subtitle "types" so one would be like 1 word a time, another would be only important words. another would be multiple words but highlight the current word. in a specified color
+- [x] bump version tooling (`uv run bump2version ...`) + Makefile command

@@ -213,6 +213,20 @@ CLIPER is modular and extensible:
 
 Check the [Architecture guide](docs/ARCHITECTURE.md#extensibility) for details.
 
+### Versioning
+
+Update the project version in `pyproject.toml`:
+
+```bash
+uv run bump2version patch   # or: minor / major
+```
+
+If you use Docker, you can also run:
+
+```bash
+make bump PART=patch   # or: minor / major
+```
+
 ---
 
 ## License
