@@ -14,3 +14,5 @@
 - [ ] add subtitle control. allowing for how things are split by ch and word both. so max and min ch and words
 - [ ] add some subtitle "types" so one would be like 1 word a time, another would be only important words. another would be multiple words but highlight the current word. in a specified color
 - [x] bump version tooling (`uv run bump2version ...`) + Makefile command
+- [ ] silance removal option. so cut down silence if its more then n milseconds and make it only y milseconds SpeechBrain VAD
+- [ ] add Diarization so we know who said what. we can have diffrent color subtitles. whisperx already has a version of this. pyannote has one as well.  
