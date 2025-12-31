@@ -12,10 +12,14 @@ env.bak/
 venv.bak/
 
 # Archivos del proyecto (generados y procesados)
-downloads/           # Videos descargados de YouTube
-output/             # Clips finales procesados
-temp/               # Archivos temporales (transcripciones, audio, etc.)
-pasoxpaso/          # Notas de desarrollo paso a paso (local only)
+# Videos descargados de YouTube
+downloads/
+# Clips finales procesados
+output/
+# Archivos temporales (transcripciones, audio, etc.)
+temp/
+# Notas de desarrollo paso a paso (local only)
+pasoxpaso/
 *.log
 logs/
 
@@ -117,8 +121,10 @@ test_videos/
 sample_data/
 
 # Development & Internal Documentation
-pasoxpaso/          # Internal development notes and implementation steps
-docs/idea*.md       # Internal design notes
+# Internal development notes and implementation steps
+pasoxpaso/
+# Internal design notes
+docs/idea*.md
 
 # IDE & Development Tools - Personal Configurations
 .cursorrules        # Cursor rules (local only)
