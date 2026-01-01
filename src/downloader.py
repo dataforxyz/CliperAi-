@@ -12,6 +12,7 @@ from urllib.parse import urlparse, parse_qs
 import yt_dlp
 
 from .utils.logger import setup_logger
+from .core.dependency_manager import DependencyProgress, DependencyReporter, DependencyStatus
 
 
 class YoutubeDownloader:
@@ -19,9 +20,12 @@ class YoutubeDownloader:
     Mi clase principal para descargar videos de YouTube
     """
 
-    def __init__(self, download_dir: str = "downloads"):
+    def __init__(self, download_dir: str = "downloads", reporter: Optional[DependencyReporter] = None):
         # Aquí guardo dónde voy a poner los videos
         self.download_dir = Path(download_dir)
+        self.reporter = reporter
+        self._active_download_key: Optional[str] = None
+        self._active_download_desc: str = "Video download"
 
         # Creo mi logger para ver qué pasa
         self.logger = setup_logger("downloader")
@@ -96,9 +100,31 @@ class YoutubeDownloader:
             eta = d.get('_eta_str', 'N/A')
 
             self.logger.info(f"📥 {percent} | ⚡ {speed} | ⏱️  ETA: {eta}")
+            if self.reporter and self._active_download_key:
+                self.reporter.report(
+                    DependencyProgress(
+                        key=self._active_download_key,
+                        description=self._active_download_desc,
+                        status=DependencyStatus.DOWNLOADING,
+                        index=1,
+                        total=1,
+                        message=f"{percent} | {speed} | ETA: {eta}",
+                    )
+                )
 
         elif d['status'] == 'finished':
             self.logger.info("✓ Descarga completada. Procesando...")
+            if self.reporter and self._active_download_key:
+                self.reporter.report(
+                    DependencyProgress(
+                        key=self._active_download_key,
+                        description=self._active_download_desc,
+                        status=DependencyStatus.DOWNLOADING,
+                        index=1,
+                        total=1,
+                        message="Download finished; processing...",
+                    )
+                )
 
 
     def get_video_info(self, url: str) -> Optional[Dict[str, Any]]:
@@ -162,6 +188,20 @@ class YoutubeDownloader:
             return None
 
         try:
+            self._active_download_key = f"video_download:{self._extract_video_id(url) or url}"
+            self._active_download_desc = f"Video download ({quality})"
+            if self.reporter and self._active_download_key:
+                self.reporter.report(
+                    DependencyProgress(
+                        key=self._active_download_key,
+                        description=self._active_download_desc,
+                        status=DependencyStatus.DOWNLOADING,
+                        index=1,
+                        total=1,
+                        message="Starting...",
+                    )
+                )
+
             # Extraigo el ID por si lo necesito
             video_id = self._extract_video_id(url)
 
@@ -218,19 +258,65 @@ class YoutubeDownloader:
 
                 # Verifico que el archivo exista
                 if final_path.exists():
+                    if self.reporter and self._active_download_key:
+                        self.reporter.report(
+                            DependencyProgress(
+                                key=self._active_download_key,
+                                description=self._active_download_desc,
+                                status=DependencyStatus.DONE,
+                                index=1,
+                                total=1,
+                                message=str(final_path),
+                            )
+                        )
                     self.logger.info(f"✅ Descargado: {final_path}")
                     return str(final_path)
                 else:
                     self.logger.error("No encuentro el archivo")
+                    if self.reporter and self._active_download_key:
+                        self.reporter.report(
+                            DependencyProgress(
+                                key=self._active_download_key,
+                                description=self._active_download_desc,
+                                status=DependencyStatus.ERROR,
+                                index=1,
+                                total=1,
+                                message="Downloaded file was not found on disk",
+                            )
+                        )
                     return None
 
         except yt_dlp.utils.DownloadError as e:
             self.logger.error(f"❌ Error de descarga: {e}")
+            if self.reporter and self._active_download_key:
+                self.reporter.report(
+                    DependencyProgress(
+                        key=self._active_download_key,
+                        description=self._active_download_desc,
+                        status=DependencyStatus.ERROR,
+                        index=1,
+                        total=1,
+                        message=str(e),
+                    )
+                )
             return None
 
         except Exception as e:
             self.logger.error(f"❌ Error inesperado: {e}")
+            if self.reporter and self._active_download_key:
+                self.reporter.report(
+                    DependencyProgress(
+                        key=self._active_download_key,
+                        description=self._active_download_desc,
+                        status=DependencyStatus.ERROR,
+                        index=1,
+                        total=1,
+                        message=str(e),
+                    )
+                )
             return None
+        finally:
+            self._active_download_key = None
 
 
     def download_audio_only(self, url: str) -> Optional[str]:

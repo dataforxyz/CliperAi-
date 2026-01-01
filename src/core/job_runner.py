@@ -5,6 +5,12 @@ from typing import Any, Callable, Dict, Optional
 
 from .events import JobStatusEvent, LogEvent, LogLevel, ProgressEvent, StateEvent
 from .models import JobSpec, JobState, JobStatus, JobStep
+from .dependency_manager import (
+    DependencyReporter,
+    DependencyStatus,
+    DependencyProgress,
+    ensure_transcription_dependencies,
+)
 
 
 EmitFn = Callable[[object], None]
@@ -19,6 +25,7 @@ class JobRunner:
     def __init__(self, state_manager, emit: EmitFn):
         self.state_manager = state_manager
         self.emit = emit
+        self._dependency_ok_cache: set[tuple[str, str, str, str]] = set()
 
     def run_job(self, job: JobSpec) -> JobStatus:
         status = JobStatus(progress_current=0, progress_total=len(job.video_ids) * max(1, len(job.steps)))
@@ -72,16 +79,63 @@ class JobRunner:
             self.emit(LogEvent(job_id=job_id, video_id=video_id, level=LogLevel.INFO, message="Already transcribed; skipping"))
             return
 
+        class _JobDependencyReporter(DependencyReporter):
+            def __init__(self, emit: EmitFn, job_id: str, video_id: str):
+                self._emit = emit
+                self._job_id = job_id
+                self._video_id = video_id
+
+            def report(self, event: DependencyProgress) -> None:
+                if event.status == DependencyStatus.CHECKING:
+                    self._emit(LogEvent(job_id=self._job_id, video_id=self._video_id, level=LogLevel.INFO, message=f"Checking dependency: {event.description}"))
+                elif event.status == DependencyStatus.DOWNLOADING:
+                    self._emit(LogEvent(job_id=self._job_id, video_id=self._video_id, level=LogLevel.INFO, message=f"Downloading dependency: {event.description}"))
+                elif event.status == DependencyStatus.SKIPPED:
+                    self._emit(LogEvent(job_id=self._job_id, video_id=self._video_id, level=LogLevel.INFO, message=f"Dependency already installed: {event.description}"))
+                elif event.status == DependencyStatus.DONE:
+                    self._emit(LogEvent(job_id=self._job_id, video_id=self._video_id, level=LogLevel.INFO, message=f"Dependency ready: {event.description}"))
+                elif event.status == DependencyStatus.ERROR:
+                    self._emit(LogEvent(job_id=self._job_id, video_id=self._video_id, level=LogLevel.ERROR, message=f"Dependency failed: {event.description} ({event.message})"))
+
+            def is_cancelled(self) -> bool:
+                return False
+
+        device_setting = str(settings.get("device", "auto"))
+        resolved_device = "cpu" if device_setting == "auto" else device_setting
+        model_size = str(settings.get("model", "base"))
+        compute_type = str(settings.get("compute_type", "int8"))
+        language_code = settings.get("language")
+        deps_cache_key = (
+            model_size,
+            str(language_code) if language_code else "",
+            resolved_device,
+            compute_type,
+        )
+        if deps_cache_key not in self._dependency_ok_cache:
+            deps_result = ensure_transcription_dependencies(
+                model_size=model_size,
+                language_code=str(language_code) if language_code else None,
+                device=resolved_device,
+                compute_type=compute_type,
+                reporter=_JobDependencyReporter(self.emit, job_id, video_id),
+            )
+            if not deps_result.ok:
+                details = "; ".join(f"{k}: {v}" for k, v in deps_result.failed.items()) or "Unknown dependency error"
+                raise RuntimeError(f"Missing required dependencies: {details}")
+            self._dependency_ok_cache.add(deps_cache_key)
+        else:
+            self.emit(LogEvent(job_id=job_id, video_id=video_id, level=LogLevel.INFO, message="Dependencies already ensured; skipping checks"))
+
         from src.transcriber import Transcriber
 
         transcriber = Transcriber(
-            model_size=settings.get("model", "base"),
-            device=settings.get("device", "auto"),
-            compute_type=settings.get("compute_type", "int8"),
+            model_size=model_size,
+            device=device_setting,
+            compute_type=compute_type,
         )
         transcript_path = transcriber.transcribe(
             video_path=video_path,
-            language=settings.get("language"),
+            language=language_code,
             skip_if_exists=settings.get("skip_if_exists", True),
         )
         if not transcript_path:

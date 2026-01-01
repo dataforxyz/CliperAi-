@@ -265,8 +265,33 @@ class CliperTUI(App):
 
             def download_and_register() -> None:
                 from src.downloader import YoutubeDownloader
+                from src.core.dependency_manager import DependencyProgress, DependencyReporter, DependencyStatus
 
-                downloader = YoutubeDownloader(download_dir="downloads")
+                call_from_thread = self.call_from_thread
+
+                class _TUIDownloadReporter(DependencyReporter):
+                    def __init__(self, call_from_thread):
+                        self._call_from_thread = call_from_thread
+                        self._last_line: str = ""
+
+                    def report(self, event: DependencyProgress) -> None:
+                        if event.status == DependencyStatus.DOWNLOADING:
+                            if not event.message:
+                                return
+                            if event.message == self._last_line:
+                                return
+                            self._last_line = event.message
+                            self._call_from_thread(logs.write, f"[dim]{event.message}[/dim]")
+                        elif event.status == DependencyStatus.ERROR:
+                            self._call_from_thread(logs.write, f"[red]{event.description} failed:[/red] {event.message}")
+                        elif event.status == DependencyStatus.DONE:
+                            if event.message:
+                                self._call_from_thread(logs.write, f"[green]Saved:[/green] {event.message}")
+
+                    def is_cancelled(self) -> bool:
+                        return False
+
+                downloader = YoutubeDownloader(download_dir="downloads", reporter=_TUIDownloadReporter(call_from_thread))
                 downloaded = downloader.download(url)
                 if not downloaded:
                     self.call_from_thread(logs.write, f"[red]Download failed:[/red] {url}")

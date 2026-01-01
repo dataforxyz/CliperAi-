@@ -10,11 +10,11 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional, List
-import whisperx
 import gc
 import torch
 
 from .utils.logger import setup_logger
+from .core.dependency_manager import load_align_model, load_whisper_model
 
 
 class Transcriber:
@@ -69,11 +69,7 @@ class Transcriber:
 
         # Cargo el modelo de Whisper
         self.logger.info(f"Cargando modelo Whisper ({model_size})...")
-        self.model = whisperx.load_model(
-            self.model_size,
-            self.device,
-            compute_type=self.compute_type
-        )
+        self.model = load_whisper_model(model_size=self.model_size, device=self.device, compute_type=self.compute_type)
         self.logger.info("Modelo cargado exitosamente")
 
 
@@ -187,6 +183,8 @@ class Transcriber:
             self.logger.info("Iniciando transcripción con WhisperX...")
             self.logger.info("Esto puede tardar varios minutos dependiendo de la duración del video")
 
+            import whisperx  # type: ignore
+
             audio = whisperx.load_audio(str(audio_path))
             result = self.model.transcribe(
                 audio,
@@ -223,10 +221,7 @@ class Transcriber:
             self.logger.info(f"Usando código de idioma para alineación: {align_language}")
 
             # Cargo modelo de alineación
-            model_a, metadata = whisperx.load_align_model(
-                language_code=align_language,
-                device=self.device
-            )
+            model_a, metadata = load_align_model(language_code=align_language, device=self.device, cache_in_memory=False)
 
             # Alineo
             result = whisperx.align(

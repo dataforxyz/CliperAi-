@@ -39,6 +39,14 @@ try:
         is_supported_video_file as _is_supported_video_file,
         load_registered_videos,
     )
+    from src.core.dependency_manager import (
+        DependencyProgress,
+        DependencyReporter,
+        DependencyStatus,
+        EnsureDecision,
+        build_required_dependencies,
+        ensure_all_required,
+    )
     from config.content_presets import get_preset, list_presets, get_preset_description
 except ImportError as e:
     print(f"Error importando módulos: {e}")
@@ -290,14 +298,16 @@ def menu_principal(videos: List[Dict], state_manager) -> str:
         menu_table.add_row("1", "Process a video")
         menu_table.add_row("2", "Batch process videos")
         menu_table.add_row("3", "Add/Download video(s)")
-        menu_table.add_row("4", "Cleanup project data")
-        menu_table.add_row("5", "Exit")
-        opciones = ["1", "2", "3", "4", "5"]
+        menu_table.add_row("4", "Download all required files")
+        menu_table.add_row("5", "Cleanup project data")
+        menu_table.add_row("6", "Exit")
+        opciones = ["1", "2", "3", "4", "5", "6"]
     else:
         menu_table.add_row("1", "Add/Download video(s)")
-        menu_table.add_row("2", "Cleanup project data")
-        menu_table.add_row("3", "Exit")
-        opciones = ["1", "2", "3"]
+        menu_table.add_row("2", "Download all required files")
+        menu_table.add_row("3", "Cleanup project data")
+        menu_table.add_row("4", "Exit")
+        opciones = ["1", "2", "3", "4"]
 
     console.print(Panel(menu_table, title="[bold]Main Menu[/bold]", border_style="cyan"))
     console.print()
@@ -309,6 +319,166 @@ def menu_principal(videos: List[Dict], state_manager) -> str:
     )
 
     return opcion
+
+
+def _detect_missing_dependencies(specs) -> List:
+    missing = []
+    for spec in specs:
+        try:
+            if not spec.check():
+                missing.append(spec)
+        except Exception:
+            missing.append(spec)
+    return missing
+
+
+def _ensure_dependencies_interactive(
+    specs,
+    *,
+    max_attempts: int = 20,
+    intro: Optional[str] = None,
+) -> Optional["EnsureResult"]:
+    from rich.progress import (
+        BarColumn,
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        TimeElapsedColumn,
+    )
+
+    cancelled = {"value": False}
+
+    class _CLIDepReporter(DependencyReporter):
+        def __init__(self):
+            self._progress: Optional[Progress] = None
+            self._task_id: Optional[int] = None
+            self._done: int = 0
+
+        def attach(self, progress: Progress, task_id: int) -> None:
+            self._progress = progress
+            self._task_id = task_id
+
+        def report(self, event: DependencyProgress) -> None:
+            if not self._progress or self._task_id is None:
+                return
+
+            label = f"[{event.index}/{event.total}] {event.description}"
+            if event.status == DependencyStatus.CHECKING:
+                self._progress.update(self._task_id, description=f"Checking: {label}")
+            elif event.status == DependencyStatus.DOWNLOADING:
+                self._progress.update(self._task_id, description=f"Downloading: {label}")
+            elif event.status == DependencyStatus.SKIPPED:
+                self._done += 1
+                self._progress.update(self._task_id, advance=1, description=f"Skipped: {label}")
+            elif event.status == DependencyStatus.DONE:
+                self._done += 1
+                self._progress.update(self._task_id, advance=1, description=f"Ready: {label}")
+            elif event.status == DependencyStatus.ERROR:
+                self._progress.update(self._task_id, description=f"Error: {label}")
+
+        def is_cancelled(self) -> bool:
+            return bool(cancelled["value"])
+
+    reporter = _CLIDepReporter()
+
+    def on_error(event: DependencyProgress, err: BaseException) -> EnsureDecision:
+        console.print()
+        console.print(Panel(f"[red]Failed:[/red] {event.description}\n{err}", border_style="red"))
+        choice = Prompt.ask(
+            "[bold cyan]Retry, skip, or cancel?[/bold cyan]",
+            choices=["retry", "skip", "cancel"],
+            default="retry",
+        )
+        if choice == "retry":
+            return EnsureDecision.RETRY
+        if choice == "skip":
+            return EnsureDecision.SKIP
+        cancelled["value"] = True
+        return EnsureDecision.CANCEL
+
+    try:
+        if intro:
+            console.print(intro)
+            console.print()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total}"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task_id = progress.add_task("Preparing...", total=len(specs))
+            reporter.attach(progress, task_id)
+            return ensure_all_required(specs, reporter=reporter, on_error=on_error, max_attempts=max_attempts)
+    except KeyboardInterrupt:
+        cancelled["value"] = True
+        return None
+
+
+def _ensure_transcription_dependencies_if_missing(*, model_size: str, language_code: Optional[str]) -> bool:
+    align_langs = None if not language_code else [language_code]
+    specs = build_required_dependencies(whisper_model_size=model_size, align_language_codes=align_langs)
+    missing = _detect_missing_dependencies(specs)
+    if not missing:
+        return True
+
+    result = _ensure_dependencies_interactive(
+        specs,
+        max_attempts=20,
+        intro="[bold]Missing transcription dependencies detected.[/bold]\nDownloading required models before transcription...",
+    )
+    if result is None or result.canceled:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return False
+    if result.failed:
+        console.print("[yellow]Some dependencies failed to download.[/yellow]")
+        for key, msg in result.failed.items():
+            console.print(f" - [red]{key}[/red]: {msg}")
+        return False
+    return True
+
+
+def opcion_descargar_archivos_requeridos():
+    """
+    Pre-descargo todos los assets/modelos necesarios para evitar descargas en primer uso.
+    """
+    console.clear()
+    mostrar_banner()
+
+    console.print(
+        Panel(
+            "[bold]Download all required files[/bold]\n"
+            "This will pre-download WhisperX models and other runtime assets (if missing).\n"
+            "Subsequent runs should skip already-installed items.",
+            border_style="cyan",
+        )
+    )
+    console.print()
+
+    specs = build_required_dependencies()
+    result = _ensure_dependencies_interactive(specs, max_attempts=20)
+
+    console.print()
+    if (result is None) or result.canceled:
+        console.print("[yellow]Cancelled.[/yellow]")
+        Prompt.ask("\n[dim]Press ENTER to continue[/dim]", default="")
+        return
+
+    if result.failed:
+        console.print("[yellow]Some items failed to download.[/yellow]")
+        for key, msg in result.failed.items():
+            console.print(f" - [red]{key}[/red]: {msg}")
+    else:
+        console.print("[green]All required files are ready.[/green]")
+
+    if result.skipped:
+        console.print(f"[dim]Skipped {len(result.skipped)} already-installed item(s).[/dim]")
+    if result.completed:
+        console.print(f"[dim]Downloaded {len(result.completed)} item(s).[/dim]")
+
+    Prompt.ask("\n[dim]Press ENTER to continue[/dim]", default="")
 
 
 def opcion_descargar_video(downloader, state_manager):
@@ -683,6 +853,10 @@ def _batch_transcribe(selected: List[Dict[str, str]], state_manager):
     console.print()
     if not Confirm.ask(f"[cyan]Start transcription for {len(selected)} video(s)?[/cyan]", default=True):
         console.print("[yellow]Cancelled[/yellow]")
+        return
+
+    if not _ensure_transcription_dependencies_if_missing(model_size=model_size, language_code=language):
+        Prompt.ask("\n[dim]Press ENTER to return[/dim]", default="")
         return
 
     console.print("\n[cyan]Loading Whisper model...[/cyan]")
@@ -1099,6 +1273,10 @@ def opcion_transcribir_video(video: Dict, state_manager):
         return
 
     try:
+        if not _ensure_transcription_dependencies_if_missing(model_size=model_size, language_code=language):
+            Prompt.ask("\n[dim]Press ENTER to return[/dim]", default="")
+            return
+
         # Creo el transcriber
         console.print("\n[cyan]Loading Whisper model...[/cyan]")
         transcriber = Transcriber(model_size=model_size)
@@ -2192,18 +2370,24 @@ def main():
                 opcion_descargar_video(downloader, state_manager)
                 videos = cargar_videos_disponibles(state_manager)
             elif opcion == "4":
-                opcion_cleanup_project()
+                opcion_descargar_archivos_requeridos()
                 videos = cargar_videos_disponibles(state_manager)
             elif opcion == "5":
+                opcion_cleanup_project()
+                videos = cargar_videos_disponibles(state_manager)
+            elif opcion == "6":
                 break
         else:
             if opcion == "1":
                 opcion_descargar_video(downloader, state_manager)
                 videos = cargar_videos_disponibles(state_manager)
             elif opcion == "2":
-                opcion_cleanup_project()
+                opcion_descargar_archivos_requeridos()
                 videos = cargar_videos_disponibles(state_manager)
             elif opcion == "3":
+                opcion_cleanup_project()
+                videos = cargar_videos_disponibles(state_manager)
+            elif opcion == "4":
                 break
 
         console.clear()
