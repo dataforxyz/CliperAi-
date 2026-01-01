@@ -9,7 +9,7 @@
 - **Inputs:** `output_dir: str` (optional, default: "output")
 - **Outputs:** None (creates output directory)
 
-**Function:** `export_clips(video_path: str, clips: List[Dict], aspect_ratio: Optional[str] = None, video_name: Optional[str] = None, add_subtitles: bool = False, transcript_path: Optional[str] = None, subtitle_style: str = "default", organize_by_style: bool = False, clip_styles: Optional[Dict[int, str]] = None, enable_face_tracking: bool = False, face_tracking_strategy: str = "keep_in_frame", face_tracking_sample_rate: int = 3, add_logo: bool = False, logo_path: Optional[str] = "assets/logo.png", logo_position: str = "top-right", logo_scale: float = 0.1) -> List[str]`
+**Function:** `export_clips(video_path: str, clips: List[Dict], aspect_ratio: Optional[str] = None, video_name: Optional[str] = None, add_subtitles: bool = False, transcript_path: Optional[str] = None, subtitle_style: str = "default", organize_by_style: bool = False, clip_styles: Optional[Dict[int, str]] = None, enable_face_tracking: bool = False, face_tracking_strategy: str = "keep_in_frame", face_tracking_sample_rate: int = 3, add_logo: bool = False, logo_path: Optional[str] = "assets/logo.png", logo_position: str = "top-right", logo_scale: float = 0.1, trim_ms_start: int = 0, trim_ms_end: int = 0) -> List[str]`
 - **Purpose:** Exports clips to video files with optional processing (face tracking, subtitles, logos)
 - **Inputs:**
   - `video_path: str` (path to source video)
@@ -35,6 +35,8 @@
     - `logo_path: Optional[str]` (path to logo image, default: "assets/logo.png")
     - `logo_position: str` ("top-right", "top-left", "bottom-right", "bottom-left")
     - `logo_scale: float` (0.1 = 10% of video height)
+  - `trim_ms_start: int` (speech-edge trim in ms at clip start; scaffold only, not applied yet)
+  - `trim_ms_end: int` (speech-edge trim in ms at clip end; scaffold only, not applied yet)
 - **Outputs:** `List[str]` (paths to exported clip files)
 - **Processing Pipeline:**
   1. If `enable_face_tracking=True` and `aspect_ratio="9:16"`:

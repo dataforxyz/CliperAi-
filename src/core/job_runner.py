@@ -144,6 +144,23 @@ class JobRunner:
             self.emit(LogEvent(job_id=job_id, video_id=video_id, level=LogLevel.INFO, message="Clips already exported; skipping"))
             return
 
+        def _safe_int_setting(key: str, default: int = 0) -> int:
+            raw_value = settings.get(key, default)
+            if raw_value is None or raw_value == "":
+                return default
+            try:
+                return int(raw_value)
+            except (TypeError, ValueError):
+                self.emit(
+                    LogEvent(
+                        job_id=job_id,
+                        video_id=video_id,
+                        level=LogLevel.WARNING,
+                        message=f"Invalid export setting {key}={raw_value!r}; using {default}",
+                    )
+                )
+                return default
+
         from src.video_exporter import VideoExporter
 
         exporter = VideoExporter(output_dir=settings.get("output_dir", "output"))
@@ -157,6 +174,8 @@ class JobRunner:
             subtitle_style=str(settings.get("subtitle_style", "default")),
             organize_by_style=bool(settings.get("organize_by_style", False)),
             clip_styles=state.get("clip_styles"),
+            trim_ms_start=_safe_int_setting("trim_ms_start", 0),
+            trim_ms_end=_safe_int_setting("trim_ms_end", 0),
             enable_face_tracking=bool(settings.get("enable_face_tracking", False)),
             face_tracking_strategy=str(settings.get("face_tracking_strategy", "keep_in_frame")),
             face_tracking_sample_rate=int(settings.get("face_tracking_sample_rate", 3)),

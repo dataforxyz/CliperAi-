@@ -80,7 +80,10 @@ class VideoExporter:
         add_logo: bool = False,
         logo_path: Optional[str] = "assets/logo.png",
         logo_position: str = "top-right",
-        logo_scale: float = 0.1
+        logo_scale: float = 0.1,
+        # Speech-edge trimming parameters (scaffold; not applied yet)
+        trim_ms_start: int = 0,
+        trim_ms_end: int = 0,
     ) -> List[str]:
         """
         Exporto todos los clips de un video
@@ -102,6 +105,8 @@ class VideoExporter:
             logo_path: Ruta al archivo del logo (ej. "assets/logo.png").
             logo_position: Posición del logo ("top-right", "top-left", "bottom-right", "bottom-left").
             logo_scale: Escala del logo relativa al ancho del video (0.1 = 10%).
+            trim_ms_start: Milisegundos para recortar al inicio (scaffold; aún no se aplica).
+            trim_ms_end: Milisegundos para recortar al final (scaffold; aún no se aplica).
 
         Returns:
             Lista de rutas a los clips exportados
@@ -151,6 +156,8 @@ class VideoExporter:
                     add_subtitles=add_subtitles,
                     transcript_path=transcript_path,
                     subtitle_style=subtitle_style,
+                    trim_ms_start=trim_ms_start,
+                    trim_ms_end=trim_ms_end,
                     enable_face_tracking=enable_face_tracking,
                     face_tracking_strategy=face_tracking_strategy,
                     face_tracking_sample_rate=face_tracking_sample_rate,
@@ -184,7 +191,10 @@ class VideoExporter:
         add_logo: bool = False,
         logo_path: Optional[str] = "assets/logo.png",
         logo_position: str = "top-right",
-        logo_scale: float = 0.1
+        logo_scale: float = 0.1,
+        # Speech-edge trimming parameters (scaffold; not applied yet)
+        trim_ms_start: int = 0,
+        trim_ms_end: int = 0,
     ) -> Optional[Path]:
         clip_id = clip['clip_id']
         start_time = clip['start_time']
