@@ -145,8 +145,20 @@ class JobRunner:
             return
 
         from src.video_exporter import VideoExporter
+        from src.utils.logo import DEFAULT_BUILTIN_LOGO_PATH, resolve_logo_path
 
         exporter = VideoExporter(output_dir=settings.get("output_dir", "output"))
+
+        saved_logo_path = self.state_manager.get_setting("logo_path", DEFAULT_BUILTIN_LOGO_PATH)
+        resolved_logo_path = resolve_logo_path(
+            user_logo_path=settings.get("logo_path"),
+            saved_logo_path=saved_logo_path,
+            builtin_logo_path=DEFAULT_BUILTIN_LOGO_PATH,
+        )
+        add_logo = bool(settings.get("add_logo", False))
+        if add_logo and not resolved_logo_path:
+            add_logo = False
+
         exported_paths = exporter.export_clips(
             video_path=self._get_video_path(video_id),
             clips=clips,
@@ -160,8 +172,8 @@ class JobRunner:
             enable_face_tracking=bool(settings.get("enable_face_tracking", False)),
             face_tracking_strategy=str(settings.get("face_tracking_strategy", "keep_in_frame")),
             face_tracking_sample_rate=int(settings.get("face_tracking_sample_rate", 3)),
-            add_logo=bool(settings.get("add_logo", False)),
-            logo_path=settings.get("logo_path", "assets/logo.png"),
+            add_logo=add_logo,
+            logo_path=resolved_logo_path,
             logo_position=str(settings.get("logo_position", "top-right")),
             logo_scale=float(settings.get("logo_scale", 0.1)),
         )

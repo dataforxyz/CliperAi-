@@ -78,7 +78,7 @@ class VideoExporter:
         face_tracking_sample_rate: int = 3,
         # Branding parameters (PASO4 - Logo)
         add_logo: bool = False,
-        logo_path: Optional[str] = "assets/logo.png",
+        logo_path: Optional[str] = None,
         logo_position: str = "top-right",
         logo_scale: float = 0.1
     ) -> List[str]:
@@ -99,7 +99,7 @@ class VideoExporter:
             face_tracking_strategy: "keep_in_frame" (menos movimiento) o "centered" (siempre centrado)
             face_tracking_sample_rate: Procesar cada N frames (default: 3 = 3x speedup)
             add_logo: Si True, superpone el logo en el video.
-            logo_path: Ruta al archivo del logo (ej. "assets/logo.png").
+            logo_path: Ruta al archivo del logo o a un directorio que contenga logo.(png|jpg|jpeg|webp).
             logo_position: Posición del logo ("top-right", "top-left", "bottom-right", "bottom-left").
             logo_scale: Escala del logo relativa al ancho del video (0.1 = 10%).
 
@@ -122,6 +122,15 @@ class VideoExporter:
         logger.info(f"Exportando clips a: {video_output_dir}")
 
         exported_clips = []
+
+        resolved_logo_path = None
+        if add_logo:
+            from src.utils.logo import coerce_logo_file
+
+            resolved_logo_path = coerce_logo_file(logo_path)
+            if not resolved_logo_path:
+                logger.warning("Logo overlay requested but no valid logo file found; skipping logo.")
+                add_logo = False
 
         # Progress bar
         with Progress() as progress:
@@ -155,7 +164,7 @@ class VideoExporter:
                     face_tracking_strategy=face_tracking_strategy,
                     face_tracking_sample_rate=face_tracking_sample_rate,
                     add_logo=add_logo,
-                    logo_path=logo_path,
+                    logo_path=resolved_logo_path,
                     logo_position=logo_position,
                     logo_scale=logo_scale
                 )
@@ -182,7 +191,7 @@ class VideoExporter:
         face_tracking_strategy: str = "keep_in_frame",
         face_tracking_sample_rate: int = 3,
         add_logo: bool = False,
-        logo_path: Optional[str] = "assets/logo.png",
+        logo_path: Optional[str] = None,
         logo_position: str = "top-right",
         logo_scale: float = 0.1
     ) -> Optional[Path]:
@@ -231,7 +240,7 @@ class VideoExporter:
                 video_to_process = video_path
         
         # Architectural Decision: Use a two-step process when both logo and subtitles are enabled.
-        needs_two_steps = add_logo and logo_path and Path(logo_path).exists() and add_subtitles and subtitle_file and subtitle_file.exists()
+        needs_two_steps = add_logo and bool(logo_path) and add_subtitles and subtitle_file and subtitle_file.exists()
         
         # Determine the output target for the first command
         first_step_output = temp_path_step1 if needs_two_steps else output_path
@@ -249,7 +258,7 @@ class VideoExporter:
                 inputs.extend(["-ss", str(start_time), "-t", str(duration), "-i", str(video_path)])
             
             logo_input_idx = -1
-            if add_logo and logo_path and Path(logo_path).exists():
+            if add_logo and logo_path:
                 inputs.extend(["-i", str(logo_path)])
                 logo_input_idx = audio_input_idx + 1
                 logger.info(f"Adding logo from {logo_path}")
@@ -277,12 +286,14 @@ class VideoExporter:
                     filter_chains.append(f"{last_video_stream}{','.join(simple_filters)}[v_filtered]")
                     last_video_stream = "[v_filtered]"
                 
-                positions = {"top-right": "W-w-20:20", "top-left": "20:20", "bottom-right": "W-w-20:H-h-20", "bottom-left": "20:H-h-20"}
-                pos_str = positions.get(logo_position, positions["top-right"])
-                
-                # Chain the overlay
-                filter_chains.append(f"{last_video_stream}[{logo_input_idx}:v]overlay={pos_str}[v_out]")
-                last_video_stream = "[v_out]"
+                logo_stream = f"[{logo_input_idx}:v]"
+                logo_chains, last_video_stream = self._get_logo_overlay_filter(
+                    video_stream=last_video_stream,
+                    logo_stream=logo_stream,
+                    position=logo_position,
+                    scale=logo_scale,
+                )
+                filter_chains.extend(logo_chains)
                 
                 cmd.extend(["-filter_complex", ";".join(filter_chains), "-map", last_video_stream])
 
@@ -327,18 +338,23 @@ class VideoExporter:
 
     def _get_logo_overlay_filter(
         self,
+        *,
+        video_stream: str,
+        logo_stream: str,
         position: str = "top-right",
         scale: float = 0.1
-    ) -> str:
+    ) -> tuple[list[str], str]:
         """
-        Genera el string del filtro FFmpeg para superponer un logo.
+        Genera filtros FFmpeg para escalar y superponer un logo.
 
         Args:
+            video_stream: Label del stream de video (por ej. "[0:v]" o "[v_filtered]").
+            logo_stream: Label del stream del logo (por ej. "[1:v]").
             position: Posición del logo ("top-right", "top-left", "bottom-right", "bottom-left").
             scale: Escala del logo relativa al ancho del video (0.1 = 10%).
 
         Returns:
-            String del filtro para FFmpeg.
+            (filter_chains, output_stream_label)
         """
         positions = {
             "top-right": "W-w-20:20",
@@ -348,10 +364,17 @@ class VideoExporter:
         }
         pos = positions.get(position, positions["top-right"])
 
-        # El filtro escala el logo y luego lo superpone.
-        # [1:v] es el input del logo, se escala a (ancho_video * escala) y alto automático (-1).
-        # Luego, [0:v] (video principal) y [logo_scaled] se usan en el overlay.
-        return f"scale2ref=w=oh*mdar:h=ih*{scale}[logo_scaled][video];[video][logo_scaled]overlay={pos}"
+        # 1) Escalo el logo relativo al ancho del video (main_w) y preservo aspecto con h=-1
+        # 2) Superpongo el logo escalado en la posición elegida
+        logo_scaled = "[logo_scaled]"
+        video_for_overlay = "[video_for_overlay]"
+        output = "[v_out]"
+
+        filter_chains = [
+            f"{logo_stream}{video_stream}scale2ref=w=main_w*{scale}:h=-1{logo_scaled}{video_for_overlay}",
+            f"{video_for_overlay}{logo_scaled}overlay={pos}{output}",
+        ]
+        return filter_chains, output
 
     def _get_aspect_ratio_filter(self, aspect_ratio: str) -> Optional[str]:
         """

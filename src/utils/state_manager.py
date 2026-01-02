@@ -15,6 +15,11 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import uuid
 
+from .logo import DEFAULT_BUILTIN_LOGO_PATH
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class StateManager:
     """
@@ -38,6 +43,9 @@ class StateManager:
         # Donde guardo el estado del proyecto
         self.state_file = Path(state_file)
 
+        # Root estable del proyecto (para rutas que no dependen del CWD)
+        self.app_root = Path(__file__).resolve().parents[2]
+
         # Me aseguro de que la carpeta temp/ exista
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -47,6 +55,16 @@ class StateManager:
         # Estado de jobs/queue (separado para no romper compatibilidad con project_state.json)
         self.jobs_file = self.state_file.parent / "jobs_state.json"
         self.jobs_state = self._load_jobs_state()
+
+        # Settings globales de la app (persistentes)
+        self.settings_file = self.app_root / "config" / "app_settings.json"
+        self.settings_file.parent.mkdir(parents=True, exist_ok=True)
+        self.settings = self._load_settings()
+        if not isinstance(self.settings, dict):
+            self.settings = {}
+        if "logo_path" not in self.settings:
+            self.settings["logo_path"] = DEFAULT_BUILTIN_LOGO_PATH
+            self._save_settings()
 
     def _load_state(self) -> Dict:
         """
@@ -89,6 +107,40 @@ class StateManager:
     def _save_jobs_state(self) -> None:
         with open(self.jobs_file, "w", encoding="utf-8") as f:
             json.dump(self.jobs_state, f, indent=2, ensure_ascii=False)
+
+    def _load_settings(self) -> Dict:
+        """
+        Cargo settings globales desde config/app_settings.json.
+
+        Estructura libre, ejemplo:
+        {
+          "logo_path": "assets/logo.png"
+        }
+        """
+        if self.settings_file.exists():
+            try:
+                with open(self.settings_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return data if isinstance(data, dict) else {}
+            except json.JSONDecodeError:
+                return {}
+        return {}
+
+    def _save_settings(self) -> None:
+        try:
+            with open(self.settings_file, "w", encoding="utf-8") as f:
+                json.dump(self.settings, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"No se pudieron guardar settings en {self.settings_file}: {e}")
+
+    def get_setting(self, key: str, default=None):
+        return (self.settings or {}).get(key, default)
+
+    def set_setting(self, key: str, value) -> None:
+        if self.settings is None:
+            self.settings = {}
+        self.settings[key] = value
+        self._save_settings()
 
 
     def _save_state(self):
