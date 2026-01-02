@@ -19,8 +19,12 @@ Test Cases:
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 # Para este test, necesitaremos:
 # - Un video de prueba pequeño (5-10 seg)

@@ -32,6 +32,12 @@ try:
     from src.copys_generator import generate_copys_for_video
     from src.cleanup_manager import CleanupManager
     from src.utils import get_state_manager
+    from src.utils.logo import (
+        DEFAULT_BUILTIN_LOGO_PATH,
+        is_valid_logo_location,
+        normalize_logo_setting_value,
+        resolve_logo_path,
+    )
     from src.utils.video_registry import (
         SUPPORTED_VIDEO_EXTENSIONS,
         collect_local_video_paths as _shared_collect_local_video_paths,
@@ -1038,22 +1044,45 @@ def _batch_export_clips(selected: List[Dict[str, str]], state_manager):
 
     console.print()
     add_logo = Confirm.ask("[cyan]Add logo overlay to clips?[/cyan]", default=False)
-    logo_path = "assets/logo.png"
+    saved_logo_path = state_manager.get_setting("logo_path", DEFAULT_BUILTIN_LOGO_PATH)
+    logo_path = saved_logo_path
     logo_position = "top-right"
     logo_scale = 0.1
     if add_logo:
-        advanced_branding = Confirm.ask(
-            "\n[dim]Configure advanced logo settings (path, position, scale)?[/dim]",
-            default=False
-        )
+        console.print(f"[dim]Current default logo location:[/dim] {saved_logo_path}")
+        logo_path = Prompt.ask("Logo file path (or directory)", default=logo_path)
+        if not is_valid_logo_location(logo_path):
+            console.print(
+                f"[yellow]Warning: Invalid logo location; will fall back to the saved/built-in default if available: {logo_path}[/yellow]"
+            )
+
+        advanced_branding = Confirm.ask("\n[dim]Configure advanced logo settings (position, scale)?[/dim]", default=False)
         if advanced_branding:
-            logo_path = Prompt.ask("Path to logo file", default=logo_path)
             logo_position = Prompt.ask(
                 "Logo position",
                 choices=["top-right", "top-left", "bottom-right", "bottom-left"],
-                default=logo_position
+                default=logo_position,
             )
-            logo_scale = float(Prompt.ask("Logo scale (e.g., 0.1)", default=str(logo_scale)))
+            logo_scale_str = Prompt.ask("Logo scale (e.g., 0.1)", default=str(logo_scale))
+            try:
+                logo_scale = float(logo_scale_str)
+            except ValueError:
+                console.print(f"[yellow]Invalid scale, using default: {logo_scale}[/yellow]")
+
+        if Confirm.ask("[dim]Set this logo as the default for future exports?[/dim]", default=False):
+            if is_valid_logo_location(logo_path):
+                state_manager.set_setting("logo_path", normalize_logo_setting_value(logo_path))
+            else:
+                console.print(f"[yellow]Warning: Invalid logo location; default not updated: {logo_path}[/yellow]")
+
+    resolved_logo_path = resolve_logo_path(
+        user_logo_path=logo_path if add_logo else None,
+        saved_logo_path=saved_logo_path,
+        builtin_logo_path=DEFAULT_BUILTIN_LOGO_PATH,
+    )
+    if add_logo and not resolved_logo_path:
+        console.print("[yellow]Warning: No valid logo found; continuing without logo overlay.[/yellow]")
+        add_logo = False
 
     console.print()
     add_subtitles = Confirm.ask("[cyan]Add burned-in subtitles (English)?[/cyan]", default=True)
@@ -1139,7 +1168,7 @@ def _batch_export_clips(selected: List[Dict[str, str]], state_manager):
                 face_tracking_strategy=face_tracking_strategy,
                 face_tracking_sample_rate=face_tracking_sample_rate,
                 add_logo=add_logo,
-                logo_path=logo_path,
+                logo_path=resolved_logo_path,
                 logo_position=logo_position,
                 logo_scale=logo_scale
             )
@@ -1871,19 +1900,22 @@ def opcion_exportar_clips(video: Dict, state_manager):
     console.print()
     add_logo = Confirm.ask("[cyan]Add logo overlay to clips?[/cyan]", default=False)
     
-    logo_path = "assets/logo.png"
+    saved_logo_path = state_manager.get_setting("logo_path", DEFAULT_BUILTIN_LOGO_PATH)
+    logo_path = saved_logo_path
     logo_position = "top-right"
     logo_scale = 0.1
 
     if add_logo:
         console.print(f"[green]✓[/green] Logo overlay enabled.")
+        console.print(f"[dim]Current default logo location:[/dim] {saved_logo_path}")
+        logo_path = Prompt.ask("Logo file path (or directory)", default=logo_path)
+        if not is_valid_logo_location(logo_path):
+            console.print(
+                f"[yellow]Warning: Invalid logo location; will fall back to the saved/built-in default if available: {logo_path}[/yellow]"
+            )
         
-        advanced_branding = Confirm.ask(
-            "\n[dim]Configure advanced logo settings (path, position, scale)?[/dim]",
-            default=False
-        )
+        advanced_branding = Confirm.ask("\n[dim]Configure advanced logo settings (position, scale)?[/dim]", default=False)
         if advanced_branding:
-            logo_path = Prompt.ask("Path to logo file", default=logo_path)
             logo_position = Prompt.ask(
                 "Logo position",
                 choices=["top-right", "top-left", "bottom-right", "bottom-left"],
@@ -1894,6 +1926,21 @@ def opcion_exportar_clips(video: Dict, state_manager):
                 logo_scale = float(logo_scale_str)
             except ValueError:
                 console.print(f"[yellow]Invalid scale, using default: {logo_scale}[/yellow]")
+
+        if Confirm.ask("[dim]Set this logo as the default for future exports?[/dim]", default=False):
+            if is_valid_logo_location(logo_path):
+                state_manager.set_setting("logo_path", normalize_logo_setting_value(logo_path))
+            else:
+                console.print(f"[yellow]Warning: Invalid logo location; default not updated: {logo_path}[/yellow]")
+
+    resolved_logo_path = resolve_logo_path(
+        user_logo_path=logo_path if add_logo else None,
+        saved_logo_path=saved_logo_path,
+        builtin_logo_path=DEFAULT_BUILTIN_LOGO_PATH,
+    )
+    if add_logo and not resolved_logo_path:
+        console.print("[yellow]Warning: No valid logo found; continuing without logo overlay.[/yellow]")
+        add_logo = False
 
     # Pregunto si quiere subtítulos
     console.print()
@@ -2016,7 +2063,7 @@ def opcion_exportar_clips(video: Dict, state_manager):
             face_tracking_sample_rate=face_tracking_sample_rate,
             # PASO 4: Branding parameters
             add_logo=add_logo,
-            logo_path=logo_path,
+            logo_path=resolved_logo_path,
             logo_position=logo_position,
             logo_scale=logo_scale
         )
