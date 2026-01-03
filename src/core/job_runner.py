@@ -103,7 +103,7 @@ class JobRunner:
                 input_stem = Path(first_video_path).stem
 
         run_name = f"{self._slugify(input_stem or 'job')}_{job_id}"
-        run_output_dir = Path("output") / "runs" / run_name
+        run_output_dir = (Path("output") / "runs" / run_name).resolve()
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
         # Persist for UI / debugging.
@@ -383,7 +383,7 @@ class JobRunner:
                 final = max(final_mp4s, key=lambda p: p.stat().st_mtime)
                 self.state_manager.update_job_status(
                     job_id,
-                    {"final_video_path": str(final), "final_video_paths": [str(p) for p in final_mp4s]},
+                    {"final_video_path": str(final.resolve()), "final_video_paths": [str(p.resolve()) for p in final_mp4s]},
                 )
 
             self.emit(
@@ -455,8 +455,8 @@ class JobRunner:
             self.state_manager.update_job_status(
                 job_id,
                 {
-                    "final_video_path": str(Path(exported_paths[-1])),
-                    "final_video_paths": [str(Path(p)) for p in exported_paths],
+                    "final_video_path": str(Path(exported_paths[-1]).resolve()),
+                    "final_video_paths": [str(Path(p).resolve()) for p in exported_paths],
                 },
             )
         self.emit(
