@@ -15,8 +15,11 @@ from typing import Dict, List, Optional, Union
 from datetime import datetime
 import uuid
 
-from .logo import DEFAULT_BUILTIN_LOGO_PATH
 from .logger import get_logger
+from src.config.settings_schema import (
+    get_app_setting_definition,
+    validate_and_normalize_app_settings,
+ )
 
 logger = get_logger(__name__)
 
@@ -65,11 +68,15 @@ class StateManager:
         # Settings globales de la app (persistentes)
         self.settings_file = Path(settings_file) if settings_file is not None else (self.app_root / "config" / "app_settings.json")
         self.settings_file.parent.mkdir(parents=True, exist_ok=True)
-        self.settings = self._load_settings()
-        if not isinstance(self.settings, dict):
-            self.settings = {}
-        if "logo_path" not in self.settings:
-            self.settings["logo_path"] = DEFAULT_BUILTIN_LOGO_PATH
+        loaded_settings = self._load_settings()
+        if not isinstance(loaded_settings, dict):
+            loaded_settings = {}
+        validated, errors = validate_and_normalize_app_settings(loaded_settings)
+        self.settings = validated
+        if errors:
+            for key, msg in errors.items():
+                logger.warning(f"Invalid setting {key!r}; reset to default: {msg}")
+        if validated != loaded_settings:
             self._save_settings()
 
     def _load_state(self) -> Dict:
@@ -140,12 +147,20 @@ class StateManager:
             logger.warning(f"No se pudieron guardar settings en {self.settings_file}: {e}")
 
     def get_setting(self, key: str, default=None):
+        if default is None:
+            definition = get_app_setting_definition(key)
+            if definition is not None:
+                default = definition.default
         return (self.settings or {}).get(key, default)
 
     def set_setting(self, key: str, value) -> None:
         if self.settings is None:
             self.settings = {}
-        self.settings[key] = value
+        definition = get_app_setting_definition(key)
+        if definition is not None:
+            self.settings[key] = definition.validate_and_normalize(value)
+        else:
+            self.settings[key] = value
         self._save_settings()
 
 
