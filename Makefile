@@ -1,4 +1,4 @@
-.PHONY: help install-make build dev prod start stop down restart logs shell clean ps test format lint bump bump-patch bump-minor bump-major
+.PHONY: help install-make build dev prod start tui tui-docker stop down restart logs shell clean ps test format lint bump bump-patch bump-minor bump-major
 
 # Default target - show help
 help:
@@ -15,6 +15,8 @@ help:
 	@echo "  make dev            Start in development mode (interactive)"
 	@echo "  make prod           Start in production/detached mode"
 	@echo "  make start          Alias for 'make dev'"
+	@echo "  make tui            Run the TUI interface (local)"
+	@echo "  make tui-docker     Run the TUI interface (Docker)"
 	@echo "  make stop           Stop running containers"
 	@echo "  make down           Stop and remove containers"
 	@echo "  make restart        Restart all services"
@@ -73,6 +75,16 @@ prod:
 
 # Alias for dev
 start: dev
+
+# Run the TUI interface (local)
+tui:
+	@echo "🖥️  Starting CLIPER TUI interface..."
+	uv run python src/tui/app.py
+
+# Run the TUI interface (Docker)
+tui-docker:
+	@echo "🖥️  Starting CLIPER TUI interface (Docker)..."
+	docker-compose run --rm cliper uv run python src/tui/app.py
 
 # Stop containers without removing them
 stop:
