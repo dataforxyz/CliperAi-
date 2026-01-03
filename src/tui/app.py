@@ -23,7 +23,7 @@ from src.utils.video_registry import collect_local_video_paths, register_local_v
 from src.core.events import JobStatusEvent, LogEvent, ProgressEvent, StateEvent
 from src.core.job_runner import JobRunner
 from src.core.models import JobSpec, JobState, JobStep
-from src.utils.logo import DEFAULT_BUILTIN_LOGO_PATH, is_valid_logo_location, normalize_logo_setting_value
+from src.config.settings_schema import iter_app_setting_groups, list_app_settings_by_group
 
 
 class AddVideosModal(ModalScreen[Optional[Dict[str, object]]]):
@@ -113,45 +113,6 @@ class ProcessShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             self.dismiss({"input_path": input_path})
 
 
-class _SettingsField:
-    def __init__(
-        self,
-        *,
-        key: str,
-        label: str,
-        default: object,
-        placeholder: str = "",
-        help_text: str = "",
-    ) -> None:
-        self.key = key
-        self.label = label
-        self.default = default
-        self.placeholder = placeholder
-        self.help_text = help_text
-
-    def validate(self, raw: str) -> object:
-        return raw
-
-
-class _LogoPathField(_SettingsField):
-    def validate(self, raw: str) -> object:
-        value = (raw or "").strip() or str(self.default)
-        if not is_valid_logo_location(value):
-            raise ValueError("Must be an existing image file or a directory containing logo.{png,jpg,jpeg,webp}")
-        return normalize_logo_setting_value(value)
-
-
-_APP_SETTINGS_FIELDS: List[_SettingsField] = [
-    _LogoPathField(
-        key="logo_path",
-        label="Logo path (file or directory):",
-        default=DEFAULT_BUILTIN_LOGO_PATH,
-        placeholder="assets/logo.png",
-        help_text="Used for video watermarking where supported.",
-    ),
-]
-
-
 class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel"),
@@ -168,33 +129,43 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
         self._initial = dict(getattr(self._state_manager, "settings", {}) or {})
         self._refresh_settings_table(self._initial)
 
-        for field in _APP_SETTINGS_FIELDS:
-            current = self._state_manager.get_setting(field.key, field.default)
-            widget_id = f"#setting_{field.key}"
-            input_widget = self.query_one(widget_id, Input)
-            input_widget.value = str(current or "").strip() or str(field.default)
+        settings_by_group = list_app_settings_by_group()
+        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        for setting in all_settings:
+            current = self._state_manager.get_setting(setting.key, setting.default)
+            input_widget = self.query_one(f"#setting_{setting.key}", Input)
+            input_widget.value = str(current or "").strip() or str(setting.default)
 
-        if _APP_SETTINGS_FIELDS:
-            first = _APP_SETTINGS_FIELDS[0]
-            self.query_one(f"#setting_{first.key}", Input).focus()
+        if all_settings:
+            self.query_one(f"#setting_{all_settings[0].key}", Input).focus()
 
         self._validate()
 
     def compose(self) -> ComposeResult:
         yield Static("Settings / Config", id="title")
-        yield Static("Current persisted values:", classes="label")
+        yield Static("Persisted values (known settings):", classes="label")
         table = DataTable(id="settings_table")
         table.add_columns("Key", "Value")
         yield table
+        yield Static("", id="unknown_settings_note", classes="label")
 
         yield Static("Editable fields (others are read-only):", classes="label")
-        for field in _APP_SETTINGS_FIELDS:
-            yield Static(field.label, classes="label")
-            if field.help_text:
-                yield Static(field.help_text, classes="label")
-            yield Static(f"Default: {field.default}", classes="label")
-            yield Input(placeholder=field.placeholder, id=f"setting_{field.key}")
-            yield Static("", id=f"setting_{field.key}_error")
+        settings_by_group = list_app_settings_by_group()
+        for group in iter_app_setting_groups():
+            group_settings = settings_by_group.get(group.key, [])
+            if not group_settings:
+                continue
+            yield Static(group.title, classes="label")
+            if group.description:
+                yield Static(group.description, classes="label")
+
+            for setting in group_settings:
+                yield Static(setting.label, classes="label")
+                if setting.help_text:
+                    yield Static(setting.help_text, classes="label")
+                yield Static(f"Default: {setting.default}", classes="label")
+                yield Input(placeholder=setting.placeholder, id=f"setting_{setting.key}")
+                yield Static("", id=f"setting_{setting.key}_error")
 
         with Horizontal(classes="buttons"):
             yield Button("Save", id="save", variant="primary")
@@ -203,9 +174,28 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
     def _refresh_settings_table(self, settings: Dict[str, object]) -> None:
         table = self.query_one("#settings_table", DataTable)
         table.clear()
-        for key in sorted((settings or {}).keys()):
-            value = settings.get(key)
-            table.add_row(str(key), str(value))
+        settings_by_group = list_app_settings_by_group()
+        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        definitions_by_key = {s.key: s for s in all_settings}
+
+        known_keys = set(definitions_by_key.keys())
+        persisted_keys = set((settings or {}).keys())
+        unknown_keys = sorted(persisted_keys - known_keys)
+
+        for key in sorted(known_keys):
+            definition = definitions_by_key[key]
+            value = (settings or {}).get(key, definition.default)
+            if definition.is_secret and value not in (None, ""):
+                display_value = "********"
+            else:
+                display_value = "" if value is None else str(value)
+            table.add_row(str(key), display_value)
+
+        note = self.query_one("#unknown_settings_note", Static)
+        if unknown_keys:
+            note.update(f"Unknown persisted keys hidden: {len(unknown_keys)}")
+        else:
+            note.update("")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id and event.input.id.startswith("setting_"):
@@ -215,20 +205,24 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
         self._errors.clear()
         self._validated = {}
 
-        for field in _APP_SETTINGS_FIELDS:
-            raw_value = self.query_one(f"#setting_{field.key}", Input).value
+        settings_by_group = list_app_settings_by_group()
+        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        for setting in all_settings:
+            raw_value = self.query_one(f"#setting_{setting.key}", Input).value
             try:
-                self._validated[field.key] = field.validate(raw_value)
+                self._validated[setting.key] = setting.validate_from_text(raw_value)
             except Exception as e:
                 msg = str(e).strip() or "Invalid value"
-                self._errors[field.key] = msg
+                self._errors[setting.key] = msg
 
         self._render_validation_state()
 
     def _render_validation_state(self) -> None:
-        for field in _APP_SETTINGS_FIELDS:
-            error_text = self._errors.get(field.key, "")
-            self.query_one(f"#setting_{field.key}_error", Static).update(error_text)
+        settings_by_group = list_app_settings_by_group()
+        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        for setting in all_settings:
+            error_text = self._errors.get(setting.key, "")
+            self.query_one(f"#setting_{setting.key}_error", Static).update(error_text)
         self.query_one("#save", Button).disabled = bool(self._errors) or not bool(self._validated)
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -244,10 +238,12 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
             return
 
         updated: Dict[str, object] = {}
-        for field in _APP_SETTINGS_FIELDS:
-            new_value = self._validated.get(field.key)
-            if self._state_manager.get_setting(field.key, field.default) != new_value:
-                updated[field.key] = new_value
+        settings_by_group = list_app_settings_by_group()
+        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        for setting in all_settings:
+            new_value = self._validated.get(setting.key)
+            if self._state_manager.get_setting(setting.key, setting.default) != new_value:
+                updated[setting.key] = new_value
 
         for key, value in updated.items():
             self._state_manager.set_setting(key, value)

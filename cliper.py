@@ -32,10 +32,10 @@ try:
     from src.copys_generator import generate_copys_for_video
     from src.cleanup_manager import CleanupManager
     from src.utils import get_state_manager
+    from src.config.settings_schema import get_app_setting_definition
     from src.utils.logo import (
         DEFAULT_BUILTIN_LOGO_PATH,
         is_valid_logo_location,
-        normalize_logo_setting_value,
         resolve_logo_path,
     )
     from src.utils.video_registry import (
@@ -1044,12 +1044,15 @@ def _batch_export_clips(selected: List[Dict[str, str]], state_manager):
 
     console.print()
     add_logo = Confirm.ask("[cyan]Add logo overlay to clips?[/cyan]", default=False)
-    saved_logo_path = state_manager.get_setting("logo_path", DEFAULT_BUILTIN_LOGO_PATH)
+    logo_def = get_app_setting_definition("logo_path")
+    saved_logo_path = state_manager.get_setting("logo_path", (logo_def.default if logo_def else DEFAULT_BUILTIN_LOGO_PATH))
     logo_path = saved_logo_path
     logo_position = "top-right"
     logo_scale = 0.1
     if add_logo:
         console.print(f"[dim]Current default logo location:[/dim] {saved_logo_path}")
+        if logo_def and logo_def.help_text:
+            console.print(f"[dim]{logo_def.help_text}[/dim]")
         logo_path = Prompt.ask("Logo file path (or directory)", default=logo_path)
         if not is_valid_logo_location(logo_path):
             console.print(
@@ -1071,7 +1074,7 @@ def _batch_export_clips(selected: List[Dict[str, str]], state_manager):
 
         if Confirm.ask("[dim]Set this logo as the default for future exports?[/dim]", default=False):
             if is_valid_logo_location(logo_path):
-                state_manager.set_setting("logo_path", normalize_logo_setting_value(logo_path))
+                state_manager.set_setting("logo_path", logo_path)
             else:
                 console.print(f"[yellow]Warning: Invalid logo location; default not updated: {logo_path}[/yellow]")
 
@@ -1900,7 +1903,8 @@ def opcion_exportar_clips(video: Dict, state_manager):
     console.print()
     add_logo = Confirm.ask("[cyan]Add logo overlay to clips?[/cyan]", default=False)
     
-    saved_logo_path = state_manager.get_setting("logo_path", DEFAULT_BUILTIN_LOGO_PATH)
+    logo_def = get_app_setting_definition("logo_path")
+    saved_logo_path = state_manager.get_setting("logo_path", (logo_def.default if logo_def else DEFAULT_BUILTIN_LOGO_PATH))
     logo_path = saved_logo_path
     logo_position = "top-right"
     logo_scale = 0.1
@@ -1908,6 +1912,8 @@ def opcion_exportar_clips(video: Dict, state_manager):
     if add_logo:
         console.print(f"[green]✓[/green] Logo overlay enabled.")
         console.print(f"[dim]Current default logo location:[/dim] {saved_logo_path}")
+        if logo_def and logo_def.help_text:
+            console.print(f"[dim]{logo_def.help_text}[/dim]")
         logo_path = Prompt.ask("Logo file path (or directory)", default=logo_path)
         if not is_valid_logo_location(logo_path):
             console.print(
@@ -1929,7 +1935,7 @@ def opcion_exportar_clips(video: Dict, state_manager):
 
         if Confirm.ask("[dim]Set this logo as the default for future exports?[/dim]", default=False):
             if is_valid_logo_location(logo_path):
-                state_manager.set_setting("logo_path", normalize_logo_setting_value(logo_path))
+                state_manager.set_setting("logo_path", logo_path)
             else:
                 console.print(f"[yellow]Warning: Invalid logo location; default not updated: {logo_path}[/yellow]")
 
