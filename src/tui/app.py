@@ -129,14 +129,10 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
     def __init__(self, *, state_manager):
         super().__init__()
         self._state_manager = state_manager
-        self._initial: Dict[str, object] = {}
         self._errors: Dict[str, str] = {}
         self._validated: Dict[str, object] = {}
 
     def on_mount(self) -> None:
-        self._initial = dict(getattr(self._state_manager, "settings", {}) or {})
-        self._refresh_settings_table(self._initial)
-
         settings_by_group = list_app_settings_by_group()
         all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
         for setting in all_settings:
@@ -155,84 +151,37 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
         if all_settings:
             self.query_one(f"#setting_{all_settings[0].key}", Input).focus()
 
-        self._validate()
-
     def compose(self) -> ComposeResult:
-        yield Static("Settings / Config", id="title")
-        yield Static("Update persisted app settings. Invalid fields show inline errors.", id="settings_subtitle")
+        yield Static("Settings", id="title")
+        yield Static("Changes auto-save. Press Esc to close.", id="settings_subtitle")
 
         with Vertical(id="settings_modal"):
             with ScrollableContainer(id="settings_body"):
-                with Vertical(classes="settings-section", id="settings_overview"):
-                    yield Static("Current Values", classes="section-title")
-                    yield Static(
-                        "These are the known settings currently loaded from disk (secrets are masked).",
-                        classes="section-desc",
-                    )
-                    table = DataTable(id="settings_table")
-                    table.add_columns("Key", "Value")
-                    yield table
-                    yield Static("", id="unknown_settings_note", classes="section-note")
+                settings_by_group = list_app_settings_by_group()
+                for group in iter_app_setting_groups():
+                    group_settings = settings_by_group.get(group.key, [])
+                    if not group_settings:
+                        continue
 
-                with Vertical(classes="settings-section", id="settings_editable"):
-                    yield Static("Editable Settings", classes="section-title")
-                    yield Static("Edit fields below and press Save to persist.", classes="section-desc")
+                    with Vertical(classes="settings-group", id=f"settings_group_{group.key}"):
+                        yield Static(group.title, classes="group-title")
+                        if group.description:
+                            yield Static(group.description, classes="group-desc")
 
-                    settings_by_group = list_app_settings_by_group()
-                    for group in iter_app_setting_groups():
-                        group_settings = settings_by_group.get(group.key, [])
-                        if not group_settings:
-                            continue
-
-                        with Vertical(classes="settings-group", id=f"settings_group_{group.key}"):
-                            yield Static(group.title, classes="group-title")
-                            if group.description:
-                                yield Static(group.description, classes="group-desc")
-
-                            for setting in group_settings:
-                                with Vertical(classes="setting-field", id=f"setting_field_{setting.key}"):
-                                    yield Static(setting.label, classes="field-label")
-                                    if setting.help_text:
-                                        yield Static(setting.help_text, classes="help-text")
-                                    yield Static(f"Default: {setting.default}", classes="default-hint")
-                                    yield Input(placeholder=setting.placeholder, id=f"setting_{setting.key}")
-                                    yield Static("", id=f"setting_{setting.key}_error", classes="error-text")
-
-            with Horizontal(classes="buttons", id="settings_buttons"):
-                yield Button("Save", id="save", variant="primary")
-                yield Button("Cancel", id="cancel")
-
-    def _refresh_settings_table(self, settings: Dict[str, object]) -> None:
-        table = self.query_one("#settings_table", DataTable)
-        table.clear()
-        settings_by_group = list_app_settings_by_group()
-        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
-        definitions_by_key = {s.key: s for s in all_settings}
-
-        known_keys = set(definitions_by_key.keys())
-        persisted_keys = set((settings or {}).keys())
-        unknown_keys = sorted(persisted_keys - known_keys)
-
-        for key in sorted(known_keys):
-            definition = definitions_by_key[key]
-            value = (settings or {}).get(key, definition.default)
-            if definition.is_secret and value not in (None, ""):
-                display_value = "********"
-            else:
-                display_value = "" if value is None else str(value)
-            table.add_row(str(key), display_value)
-
-        note = self.query_one("#unknown_settings_note", Static)
-        if unknown_keys:
-            note.update(f"Unknown persisted keys hidden: {len(unknown_keys)}")
-        else:
-            note.update("")
+                        for setting in group_settings:
+                            with Vertical(classes="setting-field", id=f"setting_field_{setting.key}"):
+                                yield Static(setting.label, classes="field-label")
+                                if setting.help_text:
+                                    yield Static(setting.help_text, classes="help-text")
+                                yield Static(f"Default: {setting.default}", classes="default-hint")
+                                yield Input(placeholder=setting.placeholder, id=f"setting_{setting.key}")
+                                yield Static("", id=f"setting_{setting.key}_error", classes="error-text")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id and event.input.id.startswith("setting_"):
-            self._validate()
+            self._validate_and_save()
 
-    def _validate(self) -> None:
+    def _validate_and_save(self) -> None:
         self._errors.clear()
         self._validated = {}
 
@@ -248,6 +197,14 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
 
         self._render_validation_state()
 
+        # Auto-save valid settings
+        if not self._errors:
+            for setting in all_settings:
+                new_value = self._validated.get(setting.key)
+                current = self._state_manager.get_setting(setting.key, setting.default)
+                if current != new_value:
+                    self._state_manager.set_setting(setting.key, new_value)
+
     def _render_validation_state(self) -> None:
         settings_by_group = list_app_settings_by_group()
         all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
@@ -262,32 +219,6 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
                 input_widget.add_class("invalid")
             else:
                 input_widget.remove_class("invalid")
-        self.query_one("#save", Button).disabled = bool(self._errors) or not bool(self._validated)
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "cancel":
-            self.dismiss(None)
-            return
-
-        if event.button.id != "save":
-            return
-
-        self._validate()
-        if self._errors or not self._validated:
-            return
-
-        updated: Dict[str, object] = {}
-        settings_by_group = list_app_settings_by_group()
-        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
-        for setting in all_settings:
-            new_value = self._validated.get(setting.key)
-            if self._state_manager.get_setting(setting.key, setting.default) != new_value:
-                updated[setting.key] = new_value
-
-        for key, value in updated.items():
-            self._state_manager.set_setting(key, value)
-
-        self.dismiss(updated)
 
 
 class DependencyModal(ModalScreen[Optional[Dict[str, object]]]):
@@ -521,30 +452,7 @@ class CliperTUI(App):
         color: $text 70%;
     }
 
-    #settings_body { padding: 1 2; height: auto; }
-    .settings-section { height: auto; }
-    #settings_buttons {
-        margin: 0;
-        padding: 1 2;
-        border-top: solid $panel;
-        background: $surface;
-    }
-
-    #settings_overview {
-        padding: 1 1;
-        margin-bottom: 1;
-        border: solid $panel;
-    }
-
-    #settings_table {
-        height: 7;
-        min-height: 5;
-        border: solid $panel;
-    }
-
-    .section-title { text-style: bold; margin: 0 0 1 0; }
-    .section-desc { color: $text 70%; margin: 0 0 1 0; }
-    .section-note { color: $text 70%; margin-top: 1; }
+    #settings_body { padding: 1 2; height: 1fr; }
 
     .settings-group { margin-top: 1; padding: 1 1; border: solid $panel; height: auto; }
     .group-title { text-style: bold; margin: 0 0 1 0; }
