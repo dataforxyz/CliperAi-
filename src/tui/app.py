@@ -32,6 +32,7 @@ from src.core.dependency_manager import (
     build_required_dependencies,
     ensure_all_required,
 )
+from src.tui.setup_wizard import SetupWizardModal
 
 
 class AddVideosModal(ModalScreen[Optional[Dict[str, object]]]):
@@ -119,6 +120,169 @@ class ProcessShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             else:
                 input_path = self._choice_key_to_path.get(selected_key)
             self.dismiss({"input_path": input_path})
+
+
+class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
+    """Modal for custom shorts processing with options for subtitles, logo, face tracking, and trim."""
+
+    BINDINGS = [
+        Binding("escape", "dismiss", "Cancel"),
+    ]
+
+    def __init__(self, *, state_manager, choices: Optional[List[str]] = None):
+        super().__init__()
+        self._state_manager = state_manager
+        self._choices = choices or []
+        self._choice_key_to_path: Dict[str, str] = {}
+
+    def on_mount(self) -> None:
+        # Load current settings as defaults
+        settings = self._state_manager.load_settings()
+
+        # Populate fields with current settings
+        self.query_one("#subtitle_preset", Input).value = settings.get("subtitle_preset", "default")
+        self.query_one("#add_logo", Checkbox).value = True
+        self.query_one("#logo_position", Input).value = settings.get("logo_position", "top-right")
+        self.query_one("#enable_face_tracking", Checkbox).value = settings.get("enable_face_tracking", False)
+        self.query_one("#face_tracking_strategy", Input).value = settings.get("face_tracking_strategy", "keep_in_frame")
+
+        # Trim settings - enable if either value is non-zero
+        trim_start = int(settings.get("trim_ms_start", 0))
+        trim_end = int(settings.get("trim_ms_end", 0))
+        self.query_one("#enable_trim", Checkbox).value = (trim_start > 0 or trim_end > 0)
+        self.query_one("#trim_ms_start", Input).value = str(trim_start)
+        self.query_one("#trim_ms_end", Input).value = str(trim_end)
+
+        # Focus the first input or source table if choices exist
+        if self._choices:
+            self.query_one("#source_table", DataTable).focus()
+        else:
+            self.query_one("#subtitle_preset", Input).focus()
+
+    def compose(self) -> ComposeResult:
+        yield Static("Custom Shorts Processing", id="title")
+        yield Static("Configure options for shorts export (Shift+P)", id="custom_shorts_subtitle")
+
+        with Vertical(id="custom_shorts_modal"):
+            with ScrollableContainer(id="custom_shorts_body"):
+                # Source selection (if there are exported clips)
+                if self._choices:
+                    with Vertical(classes="settings-group"):
+                        yield Static("Source Selection", classes="group-title")
+                        table = DataTable(id="source_table")
+                        table.add_columns("Source")
+                        table.add_row("Full video", key="__full__")
+                        self._choice_key_to_path.clear()
+                        for idx, path in enumerate(self._choices):
+                            key = f"__choice_{idx}__"
+                            self._choice_key_to_path[key] = str(path)
+                            table.add_row(str(path), key=key)
+                        yield table
+
+                # Subtitle settings
+                with Vertical(classes="settings-group"):
+                    yield Static("Subtitles", classes="group-title")
+                    with Vertical(classes="setting-field"):
+                        yield Static("Preset style:", classes="field-label")
+                        yield Static("Options: default, bold, yellow, tiktok, small, tiny", classes="help-text")
+                        yield Input(placeholder="default", id="subtitle_preset")
+
+                # Logo settings
+                with Vertical(classes="settings-group"):
+                    yield Static("Logo / Watermark", classes="group-title")
+                    yield Checkbox("Add logo to video", id="add_logo", value=True)
+                    with Vertical(classes="setting-field"):
+                        yield Static("Logo position:", classes="field-label")
+                        yield Static("Options: top-right, top-left, bottom-right, bottom-left", classes="help-text")
+                        yield Input(placeholder="top-right", id="logo_position")
+
+                # Face tracking settings
+                with Vertical(classes="settings-group"):
+                    yield Static("Face Tracking (9:16 only)", classes="group-title")
+                    yield Checkbox("Enable face tracking", id="enable_face_tracking", value=False)
+                    with Vertical(classes="setting-field"):
+                        yield Static("Strategy:", classes="field-label")
+                        yield Static("keep_in_frame (less jittery) or centered (always center face)", classes="help-text")
+                        yield Input(placeholder="keep_in_frame", id="face_tracking_strategy")
+
+                # Trim settings
+                with Vertical(classes="settings-group"):
+                    yield Static("Dead Space Trimming", classes="group-title")
+                    yield Static("Trim silence/dead space from clip boundaries", classes="group-desc")
+                    yield Checkbox("Enable trimming", id="enable_trim", value=False)
+                    with Vertical(classes="setting-field"):
+                        yield Static("Trim from start (milliseconds):", classes="field-label")
+                        yield Input(placeholder="0", id="trim_ms_start")
+                    with Vertical(classes="setting-field"):
+                        yield Static("Trim from end (milliseconds):", classes="field-label")
+                        yield Input(placeholder="0", id="trim_ms_end")
+
+            with Horizontal(classes="buttons"):
+                yield Button("Process", id="process", variant="primary")
+                yield Button("Cancel", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+            return
+
+        if event.button.id == "process":
+            # Gather all settings
+            result: Dict[str, object] = {}
+
+            # Get source selection
+            if self._choices:
+                table = self.query_one("#source_table", DataTable)
+                key = None
+                if table.cursor_row is not None:
+                    if hasattr(table, "get_row_key"):
+                        key = table.get_row_key(table.cursor_row)
+                    else:
+                        try:
+                            key = list(getattr(table, "rows", {}).keys())[int(table.cursor_row)]
+                        except Exception:
+                            key = None
+                value = getattr(key, "value", None) if key is not None else None
+                selected_key = str(value) if value is not None else "__full__"
+                if selected_key != "__full__":
+                    result["input_path"] = self._choice_key_to_path.get(selected_key)
+
+            # Subtitle settings
+            subtitle_preset = self.query_one("#subtitle_preset", Input).value.strip().lower()
+            if subtitle_preset and subtitle_preset in {"default", "bold", "yellow", "tiktok", "small", "tiny"}:
+                result["subtitle_style"] = subtitle_preset
+
+            # Logo settings
+            result["add_logo"] = self.query_one("#add_logo", Checkbox).value
+            logo_position = self.query_one("#logo_position", Input).value.strip().lower()
+            if logo_position in {"top-right", "top-left", "bottom-right", "bottom-left"}:
+                result["logo_position"] = logo_position
+
+            # Face tracking settings
+            result["enable_face_tracking"] = self.query_one("#enable_face_tracking", Checkbox).value
+            face_strategy = self.query_one("#face_tracking_strategy", Input).value.strip().lower()
+            if face_strategy in {"keep_in_frame", "centered"}:
+                result["face_tracking_strategy"] = face_strategy
+
+            # Trim settings - only apply if toggle is enabled
+            enable_trim = self.query_one("#enable_trim", Checkbox).value
+            if enable_trim:
+                try:
+                    trim_start = int(self.query_one("#trim_ms_start", Input).value.strip() or "0")
+                    result["trim_ms_start"] = max(0, trim_start)
+                except ValueError:
+                    result["trim_ms_start"] = 0
+
+                try:
+                    trim_end = int(self.query_one("#trim_ms_end", Input).value.strip() or "0")
+                    result["trim_ms_end"] = max(0, trim_end)
+                except ValueError:
+                    result["trim_ms_end"] = 0
+            else:
+                result["trim_ms_start"] = 0
+                result["trim_ms_end"] = 0
+
+            self.dismiss(result)
 
 
 class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
@@ -503,6 +667,31 @@ class CliperTUI(App):
         background: $surface;
     }
 
+    /* Custom shorts modal styles */
+    #custom_shorts_modal {
+        width: 96%;
+        max-width: 100;
+        height: 1fr;
+        min-height: 14;
+        margin: 1 2;
+        border: heavy $panel;
+        background: $surface;
+    }
+
+    #custom_shorts_subtitle {
+        margin: 0 2 1 2;
+        color: $text 70%;
+    }
+
+    #custom_shorts_body { padding: 1 2; height: 1fr; }
+
+    #source_table {
+        height: 6;
+        min-height: 4;
+        border: solid $panel;
+        margin-bottom: 1;
+    }
+
     /* Compact mode - triggered by on_resize handler */
     .compact #right { display: none; }
     .compact #library { width: 100%; max-width: 100%; }
@@ -515,8 +704,10 @@ class CliperTUI(App):
         Binding("c", "enqueue_clips", "Clips"),
         Binding("e", "enqueue_export", "Export"),
         Binding("p", "enqueue_process_shorts", "Process Shorts"),
+        Binding("P", "custom_shorts", "Custom Shorts"),
         Binding("r", "refresh", "Refresh"),
         Binding("s", "settings", "Settings"),
+        Binding("w", "setup_wizard", "Setup Wizard"),
         Binding("d", "dependencies", "Dependencies"),
         Binding("backslash", "toggle_sidebar", "Toggle Sidebar"),
         Binding("q", "quit", "Quit"),
@@ -534,6 +725,7 @@ class CliperTUI(App):
         self._selected_run_output_dir: Optional[Path] = None
         self._selected_final_video_path: Optional[Path] = None
         self._startup_dep_check_done = False
+        self._startup_wizard_check_done = False
 
     def _load_selected_job_open_targets(self, job_id: Optional[str]) -> None:
         run_output_dir: Optional[Path] = None
@@ -600,6 +792,13 @@ class CliperTUI(App):
         self._update_layout_for_size(self.size.width, self.size.height)
 
         self.refresh_all()
+
+        # Check for first run and show setup wizard
+        if not self._startup_wizard_check_done:
+            self._startup_wizard_check_done = True
+            if self.state_manager.is_first_run():
+                self.call_later(self._show_setup_wizard)
+                return  # Skip dependency check until wizard is done
 
         # Check dependencies on startup
         if not self._startup_dep_check_done:
@@ -678,6 +877,34 @@ class CliperTUI(App):
             logs.write("[yellow]Dependency check cancelled.[/yellow]")
         else:
             logs.write("[green]Dependency check complete.[/green]")
+
+    def _show_setup_wizard(self) -> None:
+        """Show the setup wizard modal."""
+        self.push_screen(
+            SetupWizardModal(state_manager=self.state_manager),
+            callback=self._on_setup_wizard_dismissed,
+        )
+
+    async def action_setup_wizard(self) -> None:
+        """Open the setup wizard modal."""
+        await self.push_screen(
+            SetupWizardModal(state_manager=self.state_manager),
+            callback=self._on_setup_wizard_dismissed,
+        )
+
+    def _on_setup_wizard_dismissed(self, result: Optional[Dict[str, object]]) -> None:
+        logs = self.query_one("#logs", RichLog)
+        if not result:
+            logs.write("[yellow]Setup wizard cancelled.[/yellow]")
+            # Still mark as completed so it doesn't show again
+            self.state_manager.mark_wizard_completed()
+        else:
+            logs.write("[green]Setup complete! Settings saved.[/green]")
+
+        # Now check dependencies after wizard is done
+        if not self._startup_dep_check_done:
+            self._startup_dep_check_done = True
+            self.call_later(self._check_startup_dependencies)
 
     def refresh_library(self) -> None:
         self.videos = [
@@ -909,6 +1136,69 @@ class CliperTUI(App):
             settings = {"shorts": {"input_paths": {video_id: str(input_path)}}}
 
         self._enqueue_job([JobStep.TRANSCRIBE, JobStep.EXPORT_SHORTS], settings=settings)
+
+    async def action_custom_shorts(self) -> None:
+        """Open the custom shorts modal (Shift+P) for configuring shorts export options."""
+        video_ids = self._selected_or_current_video_ids()
+        if not video_ids:
+            self.query_one("#logs", RichLog).write("[yellow]No videos selected.[/yellow]")
+            return
+
+        # For single video with exported clips, show source selection
+        choices: List[str] = []
+        video_id = video_ids[0] if len(video_ids) == 1 else None
+        if video_id:
+            state = self.state_manager.get_video_state(video_id) or {}
+            exported_clips = state.get("exported_clips") or []
+            choices = [str(p) for p in exported_clips]
+
+        await self.push_screen(
+            CustomShortsModal(state_manager=self.state_manager, choices=choices),
+            callback=lambda result: self._on_custom_shorts_dismissed(video_ids, result),
+        )
+
+    def _on_custom_shorts_dismissed(self, video_ids: List[str], result: Optional[Dict[str, object]]) -> None:
+        if result is None:
+            return
+
+        # Build settings dict from modal result
+        shorts_settings: Dict[str, object] = {}
+
+        # Input path (if a specific clip was selected)
+        if result.get("input_path") and len(video_ids) == 1:
+            shorts_settings["input_paths"] = {video_ids[0]: str(result["input_path"])}
+
+        # Subtitle style
+        if result.get("subtitle_style"):
+            shorts_settings["subtitle_style"] = result["subtitle_style"]
+
+        # Logo settings
+        shorts_settings["add_logo"] = result.get("add_logo", True)
+        if result.get("logo_position"):
+            shorts_settings["logo_position"] = result["logo_position"]
+
+        # Face tracking settings - passed at top-level for job_runner
+        export_settings: Dict[str, object] = {}
+        export_settings["enable_face_tracking"] = result.get("enable_face_tracking", False)
+        if result.get("face_tracking_strategy"):
+            export_settings["face_tracking_strategy"] = result["face_tracking_strategy"]
+
+        # Trim settings
+        trim_start = int(result.get("trim_ms_start", 0))
+        trim_end = int(result.get("trim_ms_end", 0))
+        shorts_settings["trim_ms_start"] = trim_start
+        shorts_settings["trim_ms_end"] = trim_end
+
+        settings: Dict[str, object] = {"shorts": shorts_settings}
+        if export_settings:
+            settings["export"] = export_settings
+
+        self._enqueue_job([JobStep.TRANSCRIBE, JobStep.EXPORT_SHORTS], settings=settings)
+        self.query_one("#logs", RichLog).write(
+            f"[cyan]Custom shorts job enqueued[/cyan] - Logo: {shorts_settings.get('add_logo')}, "
+            f"Face tracking: {export_settings.get('enable_face_tracking')}, "
+            f"Trim: {trim_start}ms/{trim_end}ms"
+        )
 
     def _maybe_start_next_job(self) -> None:
         if self._running_job_id is not None:
