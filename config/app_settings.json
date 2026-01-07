@@ -25,5 +25,8 @@
   "enable_face_tracking": false,
   "face_tracking_strategy": "keep_in_frame",
   "face_tracking_sample_rate": 3,
+  "auto_name_method": "filename",
+  "auto_name_max_chars": 40,
+  "auto_name_word_count": 5,
   "_wizard_completed": true
 }

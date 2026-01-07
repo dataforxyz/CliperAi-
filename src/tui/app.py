@@ -660,30 +660,35 @@ class CliperTUI(App):
         color: $text 80%;
     }
 
-    #dep_buttons {
-        margin: 0;
-        padding: 1 2;
-        border-top: solid $panel;
-        background: $surface;
-    }
+	    #dep_buttons {
+	        margin: 0;
+	        padding: 1 2;
+	        border-top: solid $panel;
+	        background: $surface;
+	    }
 
-    /* Custom shorts modal styles */
-    #custom_shorts_modal {
-        width: 96%;
-        max-width: 100;
-        height: 1fr;
-        min-height: 14;
-        margin: 1 2;
-        border: heavy $panel;
-        background: $surface;
-    }
+	    /* Custom shorts modal styles */
+	    CustomShortsModal {
+	        padding: 0;
+	        align: left top;
+	    }
+
+	    #custom_shorts_modal {
+	        width: 100%;
+	        max-width: 100%;
+	        height: 1fr;
+	        min-height: 0;
+	        margin: 0;
+	        border: heavy $panel;
+	        background: $surface;
+	    }
 
     #custom_shorts_subtitle {
         margin: 0 2 1 2;
         color: $text 70%;
     }
 
-    #custom_shorts_body { padding: 1 2; height: 1fr; }
+	    #custom_shorts_body { padding: 1 2; height: 1fr; min-height: 0; }
 
     #source_table {
         height: 6;
