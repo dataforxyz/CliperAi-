@@ -61,6 +61,8 @@ def test_tui_video_features_single_video(tmp_path: Path, monkeypatch) -> None:
         state_manager_module._state_manager_instance = None
         settings_file = tmp_path / "config" / "app_settings.json"
         settings_file.parent.mkdir(parents=True, exist_ok=True)
+        # Pre-set wizard_completed to skip the setup wizard during tests
+        settings_file.write_text(json.dumps({"_wizard_completed": True}), encoding="utf-8")
         state_manager_module._state_manager_init_kwargs = {"app_root": tmp_path, "settings_file": settings_file}
 
         from src.core.events import LogEvent, LogLevel, StateEvent
