@@ -9,7 +9,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.events import Resize
 from textual.screen import ModalScreen
-from textual.widgets import Button, Checkbox, DataTable, Footer, Header, Input, RichLog, Static
+from textual.widgets import Button, Checkbox, DataTable, Footer, Header, Input, RichLog, Select, Static
 
 # Minimum terminal size for proper rendering
 MIN_WIDTH = 80
@@ -23,7 +23,7 @@ from src.utils.video_registry import collect_local_video_paths, register_local_v
 from src.core.events import JobStatusEvent, LogEvent, ProgressEvent, StateEvent
 from src.core.job_runner import JobRunner
 from src.core.models import JobSpec, JobState, JobStep
-from src.config.settings_schema import iter_app_setting_groups, list_app_settings_by_group
+from src.config.settings_schema import SUBTITLE_PRESETS, iter_app_setting_groups, list_app_settings_by_group
 from src.core.dependency_manager import (
     DependencyProgress,
     DependencyReporter,
@@ -126,6 +126,16 @@ class ProcessShortsModal(ModalScreen[Optional[Dict[str, object]]]):
 class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
     """Modal for custom shorts processing with options for subtitles, logo, face tracking, and trim."""
 
+    _SUBTITLE_PRESET_ORDER = ["default", "bold", "yellow", "tiktok", "small", "tiny"]
+    _SUBTITLE_PRESET_META = {
+        "default": ("Default", "18px yellow text, black outline, light shadow"),
+        "bold": ("Bold", "22px bold yellow text, black outline, light shadow"),
+        "yellow": ("Yellow", "20px bold yellow text, black outline, light shadow"),
+        "tiktok": ("TikTok", "20px bold, centered top, stronger shadow"),
+        "small": ("Small", "10px yellow text, mid-top alignment (more screen space)"),
+        "tiny": ("Tiny", "8px yellow text, mid-top alignment (minimal)"),
+    }
+
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel"),
     ]
@@ -143,7 +153,12 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         settings = self._state_manager.load_settings()
 
         # Populate fields with current settings
-        self.query_one("#subtitle_preset", Input).value = settings.get("subtitle_preset", "default")
+        subtitle_preset_raw = str(settings.get("subtitle_preset", "default") or "default").strip().lower()
+        subtitle_preset = subtitle_preset_raw if subtitle_preset_raw in SUBTITLE_PRESETS else "default"
+        subtitle_select = self.query_one("#subtitle_preset", Select)
+        subtitle_select.value = subtitle_preset
+        self._update_subtitle_preset_desc(subtitle_preset)
+
         self.query_one("#add_logo", Checkbox).value = True
         self.query_one("#logo_position", Input).value = settings.get("logo_position", "top-right")
         self.query_one("#enable_face_tracking", Checkbox).value = settings.get("enable_face_tracking", False)
@@ -193,7 +208,39 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         if self._choices:
             self.query_one("#source_table", DataTable).focus()
         else:
-            self.query_one("#subtitle_preset", Input).focus()
+            self.query_one("#subtitle_preset", Select).focus()
+
+    def _subtitle_preset_options(self) -> List[tuple[str, str]]:
+        ordered = [p for p in self._SUBTITLE_PRESET_ORDER if p in SUBTITLE_PRESETS]
+        extras = sorted([p for p in SUBTITLE_PRESETS if p not in set(self._SUBTITLE_PRESET_ORDER)])
+        presets = ordered + extras
+        options: List[tuple[str, str]] = []
+        for preset in presets:
+            label = self._SUBTITLE_PRESET_META.get(preset, (preset.replace("_", " ").title(), ""))[0]
+            options.append((label, preset))
+        return options
+
+    def _update_subtitle_preset_desc(self, preset: str) -> None:
+        label, desc = self._SUBTITLE_PRESET_META.get(preset, (preset.replace("_", " ").title(), ""))
+        text = f"{label}: {desc}" if desc else label
+        try:
+            self.query_one("#subtitle_preset_desc", Static).update(text)
+        except Exception:
+            pass
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "subtitle_preset":
+            return
+        if event.value is None:
+            return
+        preset = str(event.value).strip().lower()
+        if preset not in SUBTITLE_PRESETS:
+            return
+        self._update_subtitle_preset_desc(preset)
+        try:
+            self._state_manager.set_setting("subtitle_preset", preset)
+        except Exception:
+            pass
 
     def _sync_logo_controls(self) -> None:
         add_logo = bool(self.query_one("#add_logo", Checkbox).value)
@@ -230,8 +277,8 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                     yield Static("Subtitles", classes="group-title")
                     with Vertical(classes="setting-field"):
                         yield Static("Preset style:", classes="field-label")
-                        yield Static("Options: default, bold, yellow, tiktok, small, tiny", classes="help-text")
-                        yield Input(placeholder="default", id="subtitle_preset")
+                        yield Select(self._subtitle_preset_options(), id="subtitle_preset", allow_blank=False)
+                        yield Static("", id="subtitle_preset_desc", classes="subtitle-preset-desc")
 
                 # Logo settings
                 with Vertical(classes="settings-group"):
@@ -302,8 +349,9 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                     result["input_path"] = self._choice_key_to_path.get(selected_key)
 
             # Subtitle settings
-            subtitle_preset = self.query_one("#subtitle_preset", Input).value.strip().lower()
-            if subtitle_preset and subtitle_preset in {"default", "bold", "yellow", "tiktok", "small", "tiny"}:
+            subtitle_value = self.query_one("#subtitle_preset", Select).value
+            subtitle_preset = str(subtitle_value).strip().lower() if subtitle_value is not None else ""
+            if subtitle_preset and subtitle_preset in SUBTITLE_PRESETS:
                 result["subtitle_style"] = subtitle_preset
 
             # Logo settings
@@ -687,6 +735,7 @@ class CliperTUI(App):
     .setting-field { margin: 1 0; height: auto; }
     .field-label { text-style: bold; }
     .help-text { color: $text 70%; }
+    .subtitle-preset-desc { color: $text 70%; margin-top: 1; height: auto; }
     .default-hint { color: $text 60%; }
     .error-text { color: $error; margin-top: 1; height: auto; }
 
@@ -750,7 +799,8 @@ class CliperTUI(App):
         color: $text 70%;
     }
 
-	    #custom_shorts_body { padding: 1 2; height: 1fr; min-height: 0; }
+    #custom_shorts_body { padding: 1 2; height: 1fr; min-height: 0; }
+    #custom_shorts_modal Select { margin: 0; }
 
     #source_table {
         height: 6;
