@@ -1,7 +1,7 @@
 - [ ] make a fully install download in make. currently there is a lot of things that is only downloaded as needed. which is anoying if you want the full thing. like if you were building a docer and some things had to reddownload each time. 
 - [ ] show a clicable link for the finished video
 - [ ] dont ship aicdmx logo in assets ship a demo logo. 
-- [] make it so i can pass it all as terminal vars. so i just run a script with things presetup and it just does start to finish.
+- [ ] make it so i can pass it all as terminal vars. so i just run a script with things presetup and it just does start to finish.
 - [ ] need a way to easily double check and fix the captions
 - [ ] identify and add multiple human in the loop points
 - [ ] need a way to not do clipping other then to remove preamble or post amble. like words in the beging not needed or just dead space. 
@@ -9,12 +9,15 @@
 - [x] bulk process. so we do the same thing for a bunch of selected videos
 - [x] make it so we dont have to put the videos in  a specific folder to process. we should be able to select any video and just process 
 - [ ] add a way to set output folder. for batching we should place the whole batch in a sub folder of that. 
-- [ ] make a prompts folder. we should keep all the prompts i md files
-- [ ] add system to pick font, color and size for subitles
+- [x] make a prompts folder. we should keep all the prompts i md files
+- [x] add system to pick font, color and size for subitles
 - [ ] add subtitle control. allowing for how things are split by ch and word both. so max and min ch and words
 - [ ] add some subtitle "types" so one would be like 1 word a time, another would be only important words. another would be multiple words but highlight the current word. in a specified color
 - [x] bump version tooling (`uv run bump2version ...`) + Makefile command
 - [ ] silance removal option. so cut down silence if its more then n milseconds and make it only y milseconds SpeechBrain VAD
 - [ ] add Diarization so we know who said what. we can have diffrent color subtitles. whisperx already has a version of this. pyannote has one as well. 
-- [ ] have settings. where we have all the defualt settings. add a tui shortcut to edit it. in it have a way to limit the max cpu used by ffmpeg. both as a function of -1 meaning leave one cpu unused. and 5 meaning use 5 cpus.
-- [ ] normalize sound. prevent peeks and vallies. 
+- [x] have settings. where we have all the defualt settings. add a tui shortcut to edit it. in it have a way to limit the max cpu used by ffmpeg. both as a function of -1 meaning leave one cpu unused. and 5 meaning use 5 cpus.
+- [ ] normalize sound. prevent peeks and vallies.
+
+- [ ] name the shorts based the transcription
+- [ ] fix the output dir. there is way to many 
