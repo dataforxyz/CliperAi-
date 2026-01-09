@@ -830,9 +830,10 @@ class CliperTUI(App):
         Binding("q", "quit", "Quit"),
     ]
 
-    def __init__(self):
+    def __init__(self, *, cli_output_dir: Optional[str] = None):
         super().__init__()
         self.state_manager = get_state_manager()
+        self.cli_output_dir = cli_output_dir
         self.videos: List[Dict[str, str]] = []
         self.selected_video_id: Optional[str] = None
         self.selected_video_ids: Set[str] = set()
@@ -1345,7 +1346,7 @@ class CliperTUI(App):
             self.call_from_thread(self._handle_core_event, event)
 
         def run() -> None:
-            runner = JobRunner(self.state_manager, emit=emit)
+            runner = JobRunner(self.state_manager, emit=emit, cli_output_dir=self.cli_output_dir)
             status = runner.run_job(spec)
             self.call_from_thread(self.state_manager.update_job_status, spec.job_id, status.to_dict())
             self.call_from_thread(self._on_job_finished, spec.job_id)
