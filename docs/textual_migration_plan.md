@@ -1,180 +1,51 @@
-# Textual Migration Plan (CLIPER TUI → Future GUI)
+# Textual Migration Plan - COMPLETED
 
-## Goals
+> **Status:** This migration has been completed. The TUI is now the primary interface and the legacy CLI has been removed. This document is preserved for historical reference.
 
-- Maintain the TUI built on Textual (`src/tui/app.py`) as the primary interface.
-- Keep the pipeline logic (download → transcribe → clip detect → export) UI-agnostic.
-- Introduce a job/queue model that can be reused later by a desktop GUI (Qt) or a web GUI.
-- Preserve existing state (`temp/project_state.json`) and outputs (`output/`, `temp/`).
+## Summary
 
-## Non-Goals (for the first milestone)
+CLIPER migrated from a Rich-based CLI to a Textual TUI interface. The migration is complete as of Task 16.
 
-- Rewriting pipeline internals (WhisperX, ClipsAI, ffmpeg) beyond small interface changes.
-- Adding networked multi-user features.
-- Perfect UI/UX polish; focus is correctness + a solid architecture.
+## What Was Achieved
 
-## Why Textual
+### Architecture
+- Event-driven core (`src/core/`) separates business logic from UI
+- `JobRunner` emits events (`LogEvent`, `ProgressEvent`, `JobStatusEvent`)
+- UI subscribes to events and updates accordingly
+- Same core can power future GUI implementations
 
-- App-like terminal UX: multi-pane layout, keyboard navigation, live progress, logs.
-- Event-driven UI aligns with the same architecture you’ll want in a future GUI.
-- Easy to embed Rich rendering and keep existing status output patterns.
+### TUI Features Implemented
+- Video library with multi-select
+- Add videos (YouTube URL or local files)
+- Job queue with progress tracking
+- Real-time log streaming
+- Settings modal (schema-driven)
+- Keyboard shortcuts
 
-## Target Architecture (UI-agnostic Core)
+### Entry Point
+```bash
+uv run python src/tui/app.py
+```
 
-### 1) Core Layer (`src/core/…`)
+## Migration Milestones (All Completed)
 
-**Responsibilities**
-- Define a stable API for “jobs” and “pipeline steps”.
-- Provide progress + log events.
-- Read/write project state via `StateManager`.
+1. **Milestone 0:** Core refactoring - video registry utilities, settings objects
+2. **Milestone 1:** Basic Textual app with video library
+3. **Milestone 2:** Add Videos modal
+4. **Milestone 3:** Jobs + Progress tracking
+5. **Milestone 4:** Batch jobs + Queue
+6. **Milestone 5:** UX polish, keyboard shortcuts
 
-**Suggested modules**
-- `src/core/models.py`
-  - `VideoRef(id, filename, path, content_type, preset)`
-  - `JobSpec(video_id(s), steps, settings)`
-  - `JobStatus(state, progress, started_at, finished_at, error)`
-- `src/core/job_runner.py`
-  - `run_job(job: JobSpec, emit: Callable[[Event], None])`
-  - Uses existing pipeline classes (`YoutubeDownloader`, `Transcriber`, `ClipsGenerator`, `VideoExporter`)
-- `src/core/events.py`
-  - `LogEvent(level, message, video_id, job_id)`
-  - `ProgressEvent(current, total, label, video_id, job_id)`
-  - `StateEvent(video_id, updates)`
+## Future Considerations
 
-### 2) UI Layer (Textual App)
+If building additional interfaces:
+- **Desktop GUI (Qt/PySide6):** Same core, different UI layer
+- **Web GUI (FastAPI + React):** Put core behind REST API with WebSocket events
+- The event-driven architecture supports both approaches
 
-**Responsibilities**
-- Video selection & batch selection UI.
-- Job creation (“what steps to run + shared settings”).
-- Queue management (start/stop/cancel/retry).
-- Display progress, logs, and results paths.
+## Related Files
 
-### 3) Optional Future Layer (API)
-
-If you want a web GUI later, put the core behind `FastAPI`:
-- `POST /jobs` create job(s)
-- `GET /jobs/{id}` status
-- WebSocket for events/logs
-
-Textual can either call the core directly (simpler) or call the API (more future-proof).
-
-## Proposed TUI Layout
-
-### Screens
-
-1) **Library Screen** (default)
-- Left: Video list (registered videos, filter/search, multi-select)
-- Right: Video details (path, content type, status: transcribed/clips/exported)
-- Bottom: Quick actions bar (Add, Batch, Transcribe, Clips, Export, Cleanup)
-
-2) **Add Videos Modal**
-- Add by:
-  - YouTube URL
-  - File(s)
-  - Folder (toggle include subfolders)
-- Shows a preview list before confirming “Add”.
-
-3) **Batch Job Builder**
-- Choose steps:
-  - Transcribe
-  - Generate clips
-  - Export
-- Shared settings per step (same concept you implemented in the CLI batch flow).
-
-4) **Queue / Jobs Screen**
-- List of jobs, status, per-video progress
-- Controls: Start, Pause, Cancel, Retry failed
-
-5) **Logs Drawer / Panel**
-- Live log stream (filter by job/video, level)
-
-## Implementation Plan (Milestones)
-
-### Milestone 0: Prep (small refactor, no UX change) - COMPLETED
-
-- Extracted "input parsing + video registry" utilities into `src/utils/video_registry.py`
-- Core functions can be called without Rich prompts.
-- Standardize settings objects for:
-  - transcription settings (model, language, skip_done)
-  - clip settings (min/max seconds, max_clips, skip_done)
-  - export settings (aspect, subtitles, style, logo, face tracking, max_per_video)
-
-### Milestone 1: Minimal Textual App (read-only library)
-
-- Add `src/tui/app.py` (Textual app entry).
-- Show the video library table + details panel.
-- Load videos via `StateManager` (`video_path` support already exists).
-
-Deliverable
-- `python -m src.tui.app` shows videos and their state.
-
-### Milestone 2: Add Videos (interactive)
-
-- Add “Add Videos” modal:
-  - YouTube URL → calls downloader → registers video
-  - Local files/folder → registers videos
-- Refresh library view after add.
-
-Deliverable
-- Add videos without leaving the UI.
-
-### Milestone 3: Jobs + Progress (single video)
-
-- Implement `JobRunner` in core that emits events.
-- In Textual, run jobs in background worker threads/processes.
-- Render progress per job/video.
-
-Deliverable
-- Run “Transcribe” for one video and watch progress + logs.
-
-### Milestone 4: Batch Jobs + Queue
-
-- Multi-select videos.
-- Build a batch job with shared settings.
-- Queue multiple jobs (or one job containing multiple videos).
-
-Deliverable
-- Batch transcribe / clips / export from the TUI.
-
-### Milestone 5: UX polish + parity
-
-- Search/filter videos.
-- “Open output folder” hint (print path; in terminal we can’t reliably open it cross-platform without extra work).
-- Keyboard shortcuts, confirmations, error dialogs.
-
-## Concurrency Model
-
-Pipeline steps are heavy (ffmpeg, WhisperX, ML).
-
-Recommended approach:
-- Keep Textual responsive by running work in background threads.
-- Limit concurrency (default 1 job at a time) with a setting for advanced users.
-- If WhisperX/ffmpeg are CPU/GPU heavy, consider process-based execution later.
-
-## Data Model / Compatibility
-
-- Continue using `temp/project_state.json`.
-- Additive state fields are OK (already added `video_path`).
-- Avoid breaking existing keys (`transcribed`, `clips_generated`, `exported_clips`, etc.).
-
-## Risks & Mitigations
-
-- **Refactor churn:** Keep UI rewrite separate; don’t rewrite pipeline internals.
-- **Progress visibility:** Wrap long steps with coarse progress events first; refine later.
-- **Dependency footprint:** Textual adds a dependency; keep CLI as fallback initially.
-- **OS-specific file pickers:** Textual doesn’t provide native pickers; use path input + directory scanning (like now).
-
-## Suggested Repo Changes - COMPLETED
-
-- Textual added as a dependency in `pyproject.toml`
-- Entry point: `uv run python src/tui/app.py`
-- Legacy CLI removed; TUI is now the primary interface.
-
-## Next Decision Points (you choose)
-
-1) Should the future GUI be **desktop** (Qt/PySide6) or **web** (FastAPI + React)?
-2) For batch processing, should we model:
-   - one job containing many videos, or
-   - one job per video (simpler retries / parallelism)?
-3) Should the Textual app directly call the core, or call a local API service?
-
+- `src/tui/app.py` - Main TUI application
+- `src/core/job_runner.py` - Event-driven job orchestration
+- `src/core/events.py` - Event definitions
+- `src/core/models.py` - JobSpec, JobState enums

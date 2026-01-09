@@ -2,40 +2,122 @@
 
 **Module:** `src/speech_edge_clip.py`
 
-## Function: `clip_speech_edges`
+## Overview
+
+Speech-aware clipping utilities for trimming audio edges (leading/trailing silence) around speech boundaries using WhisperX word timestamps.
+
+## Functions
+
+### `compute_speech_aware_boundaries`
 
 **Signature:**
-`clip_speech_edges(*, start_time: float, end_time: float, trim_ms_start: int = 0, trim_ms_end: int = 0) -> tuple[float, float]`
+```python
+compute_speech_aware_boundaries(
+    *,
+    transcript_path: str,
+    clip_start: float,
+    clip_end: float,
+    trim_ms_start: int = 0,
+    trim_ms_end: int = 0,
+) -> tuple[float, float]
+```
 
-### Purpose
+#### Purpose
 
-Define the reusable API for trimming audio (or clip) boundaries at known speech start/stop timestamps by a fixed number of milliseconds at the beginning and end.
+Trim excess silence from a clip window using WhisperX word timestamps. This is the main function used by the export pipeline.
 
-This is **scaffolding only**: the function currently raises `NotImplementedError`. The signature and behavior rules are documented now so the export pipeline can be wired to accept the parameters without requiring future caller changes.
+#### Parameters
 
-### Parameters
+- `transcript_path: str` - Path to WhisperX transcript JSON file
+- `clip_start: float` - Clip start timestamp in seconds
+- `clip_end: float` - Clip end timestamp in seconds
+- `trim_ms_start: int` - Maximum silence buffer to keep before speech (ms)
+- `trim_ms_end: int` - Maximum silence buffer to keep after speech (ms)
 
-- `start_time: float`
-  - Speech (or clip) start timestamp in **seconds**.
-- `end_time: float`
-  - Speech (or clip) end timestamp in **seconds**.
-- `trim_ms_start: int`
-  - Milliseconds to trim from the start edge.
-- `trim_ms_end: int`
-  - Milliseconds to trim from the end edge.
+#### Behavior
 
-### Expected Behavior (when implemented)
+- `trim_ms_start` / `trim_ms_end` represent the **maximum** silence to keep, not the amount to remove
+- If leading/trailing silence is less than the buffer, that side is left unchanged
+- A value of `0` disables trimming for that side
 
-- Convert milliseconds to seconds as `trim_s = trim_ms / 1000.0`.
-- Apply trims to compute:
-  - `new_start = start_time + max(trim_ms_start, 0) / 1000.0`
-  - `new_end = end_time - max(trim_ms_end, 0) / 1000.0`
-- Return `(new_start, new_end)` in seconds.
+#### Examples
 
-### Edge-Case Rules
+With `trim_ms_start=1000` (1 second buffer):
+- Speech starts at 0.5s -> keep all 0.5s (silence < buffer)
+- Speech starts at 2.0s -> trim to start at 1.0s (1s before speech)
+- Speech ends at 8.5s, clip ends at 10s -> trim to end at 9.5s (1s after speech)
 
-- **Negative trims**: `trim_ms_start < 0` and/or `trim_ms_end < 0` are treated as `0` (trims never expand the window).
-- **Bounds**: the returned `(new_start, new_end)` must not extend outside the original `(start_time, end_time)` window (i.e., trims only move inward).
-- **Overflow**: if `trim_ms_start + trim_ms_end` is larger than the available window duration, the result collapses to a zero-length window by setting `new_start == new_end`.
-- **Invalid or inverted inputs**: if `start_time >= end_time` after normalization, the result collapses to a zero-length window (`new_start == new_end`).
+---
 
+### `clip_speech_edges`
+
+**Signature:**
+```python
+clip_speech_edges(
+    *,
+    start_time: float,
+    end_time: float,
+    trim_ms_start: int = 0,
+    trim_ms_end: int = 0,
+) -> tuple[float, float]
+```
+
+#### Purpose
+
+Simple fixed-trim utility that removes a fixed amount from clip boundaries. Does not use transcript data.
+
+#### Parameters
+
+- `start_time: float` - Clip start timestamp in seconds
+- `end_time: float` - Clip end timestamp in seconds
+- `trim_ms_start: int` - Milliseconds to trim from the beginning
+- `trim_ms_end: int` - Milliseconds to trim from the end
+
+---
+
+### `load_transcript_segments`
+
+**Signature:**
+```python
+load_transcript_segments(transcript_path: str) -> tuple[list, list]
+```
+
+#### Purpose
+
+Load a WhisperX transcript JSON and return `(segments, word_segments)`.
+
+---
+
+### `find_speech_boundaries`
+
+**Signature:**
+```python
+find_speech_boundaries(
+    segments: list,
+    clip_start: float,
+    clip_end: float,
+    *,
+    word_segments: list | None = None,
+) -> tuple[float, float] | None
+```
+
+#### Purpose
+
+Find the first and last speech timestamps inside a clip window using word-level timestamps.
+
+---
+
+## Edge Cases Handled
+
+| Case | Behavior |
+|------|----------|
+| No transcript file | No trimming (preserve original) |
+| Empty segments array | No trimming |
+| No words in segments | No trimming |
+| No speech in clip range | Keep original boundaries |
+| Computed duration <= 0 | Fallback to original |
+| trim_ms = 0 | Disabled (no trimming) |
+
+## Integration
+
+Used by `src/video_exporter.py` in `export_full_video()` to apply speech-aware trimming during clip export.

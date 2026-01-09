@@ -1,81 +1,81 @@
-# CLIPER - Notas de Diseño
+# CLIPER - Design Notes
 
-**Contexto:** CLI tool para convertir videos largos en clips cortos automáticamente.
+**Context:** CLI tool to automatically convert long videos into short clips.
 
-Este documento captura las **decisiones de diseño**, **problemas encontrados** y **soluciones** durante el desarrollo. No es marketing - es documentación del proceso de pensamiento.
+This document captures **design decisions**, **problems encountered**, and **solutions** during development. This is not marketing - it's documentation of the thought process.
 
 ---
 
-## Decisión 1: ¿Por qué CLI en lugar de GUI/Web?
+## Decision 1: Why CLI Instead of GUI/Web?
 
-### El problema inicial
-Necesitaba procesar videos largos (1-2 horas) con IA. Esto toma tiempo (30+ minutos de transcripción).
+### The Initial Problem
+Needed to process long videos (1-2 hours) with AI. This takes time (30+ minutes for transcription).
 
-### Opciones consideradas
+### Options Considered
 
 **A) Web app (Flask/Django):**
-- ❌ Websockets para procesos largos = complejo
-- ❌ ¿Dónde guardar videos? Storage = $$$
-- ❌ ffmpeg en servidor = recursos caros
-- ❌ Tiempo de desarrollo: semanas
+- Websockets for long processes = complex
+- Where to store videos? Storage = $$$
+- ffmpeg on server = expensive resources
+- Development time: weeks
 
 **B) Desktop app (Electron/PyQt):**
-- ❌ Empaquetar Python + ffmpeg + modelos ML = pesado
-- ❌ Updates complicados
-- ❌ Tiempo: semanas
+- Packaging Python + ffmpeg + ML models = heavy
+- Updates complicated
+- Time: weeks
 
 **C) Jupyter Notebook:**
-- ⚠️ Funciona, pero UI fea
-- ⚠️ Difícil de compartir
-- ⚠️ No es una "herramienta"
+- Works, but ugly UI
+- Hard to share
+- Not a "tool"
 
-**D) CLI con Rich:**
-- ✅ Desarrollo rápido (días, no semanas)
-- ✅ Terminal = diseñado para procesos largos
-- ✅ Rich library = UI bonita gratis
-- ✅ Fácil de automatizar después
+**D) CLI with Rich:**
+- Rapid development (days, not weeks)
+- Terminal = designed for long processes
+- Rich library = beautiful UI for free
+- Easy to automate later
 
-**Decisión:** CLI. Puedo iterar rápido y la terminal maneja bien procesos largos.
+**Decision:** CLI. Can iterate quickly and terminal handles long processes well.
 
 ---
 
-## Decisión 2: Pipeline de 4 fases separadas
+## Decision 2: 4-Phase Separated Pipeline
 
-### ¿Por qué no todo en un comando?
+### Why Not Everything in One Command?
 
-**Opción descartada:**
+**Discarded option:**
 ```bash
 $ cliper process video.mp4 --output clips/
 [wait 45 minutes...]
 Done!
 ```
 
-**Problemas:**
-- Si falla en minuto 40 → pierdes todo
-- No puedes ajustar configuración entre pasos
-- Debugging = pesadilla
+**Problems:**
+- If it fails at minute 40 -> lose everything
+- Can't adjust configuration between steps
+- Debugging = nightmare
 
-**Solución: Pipeline separado**
+**Solution: Separated Pipeline**
 ```
-download → transcribe → detect clips → export
+download -> transcribe -> detect clips -> export
 ```
 
-**Ventajas:**
-1. **Incremental:** Cada fase guarda output en `temp/`
-2. **Reusable:** Puedo regenerar clips sin re-transcribir (ahorra 30 min)
-3. **Debuggeable:** Inspeccionar JSON entre fases
-4. **Flexible:** Cambiar configuración a mitad del proceso
+**Advantages:**
+1. **Incremental:** Each phase saves output to `temp/`
+2. **Reusable:** Can regenerate clips without re-transcribing (saves 30 min)
+3. **Debuggable:** Inspect JSON between phases
+4. **Flexible:** Change configuration mid-process
 
-**Trade-off aceptado:** Más interacción del usuario. Pero vale la pena.
+**Accepted trade-off:** More user interaction. But worth it.
 
 ---
 
-## Decisión 3: State Manager persistente
+## Decision 3: Persistent State Manager
 
-### El problema
-Transcripción de 99 min tarda 25 minutos. Si cierro la terminal → ¿perdí todo?
+### The Problem
+Transcription of 99 min takes 25 minutes. If I close the terminal -> lost everything?
 
-### Solución: JSON persistente
+### Solution: Persistent JSON
 
 ```json
 {
@@ -87,73 +87,73 @@ Transcripción de 99 min tarda 25 minutos. Si cierro la terminal → ¿perdí to
 }
 ```
 
-**Por qué JSON y no SQLite:**
-- ✅ Humano-legible (puedo inspeccionarlo)
-- ✅ Fácil de editar manualmente si es necesario
-- ✅ No necesito migración de schema
-- ✅ Git-friendly para debugging
+**Why JSON and not SQLite:**
+- Human-readable (can inspect it)
+- Easy to edit manually if needed
+- No schema migration needed
+- Git-friendly for debugging
 
-**Por qué no en memoria:**
-- Obvio: se pierde al cerrar
+**Why not in memory:**
+- Obvious: lost on close
 
-**Por qué no archivos separados (.done, .status):**
-- Difícil de consultar estado completo
+**Why not separate files (.done, .status):**
+- Hard to query complete state
 
 ---
 
-## Decisión 4: Sistema híbrido de clips (clave)
+## Decision 4: Hybrid Clip System (Key Decision)
 
-### El problema real
+### The Real Problem
 
-Empecé pensando: "ClipsAI usa IA → debe funcionar perfecto".
+Started thinking: "ClipsAI uses AI -> must work perfectly".
 
-**Realidad:**
+**Reality:**
 ```python
 clips = clip_finder.find_clips(transcript)
-print(len(clips))  # 0 → WTF?
+print(len(clips))  # 0 -> WTF?
 ```
 
-**¿Por qué?**
+**Why?**
 
-ClipsAI usa TextTiling: detecta **cambios bruscos de tema**. Funciona bien en:
-- Podcasts (cambio de pregunta/tema)
-- Tutoriales (sección 1, sección 2, sección 3)
-- Documentales (intro → desarrollo → conclusión)
+ClipsAI uses TextTiling: detects **abrupt topic changes**. Works well for:
+- Podcasts (question/topic changes)
+- Tutorials (section 1, section 2, section 3)
+- Documentaries (intro -> development -> conclusion)
 
-**No funciona en:**
-- Livestreams de 99 min con un solo tema
-- Charlas académicas continuas
-- Conferencias técnicas
+**Doesn't work for:**
+- 99 min livestreams with a single topic
+- Continuous academic talks
+- Technical conferences
 
-### Opciones consideradas
+### Options Considered
 
-**A) "ClipsAI no funciona, usar solo tiempo fijo"**
-- ❌ Desperdiciar la IA
-- ❌ Clips malos en contenido con secciones naturales
+**A) "ClipsAI doesn't work, use only fixed time"**
+- Waste the AI
+- Bad clips on content with natural sections
 
-**B) "Ajustar threshold de ClipsAI"**
-- Intenté, pero no hay parámetro expuesto
-- API muy limitada
+**B) "Adjust ClipsAI threshold"**
+- Tried, but no exposed parameter
+- Very limited API
 
-**C) Sistema híbrido**
+**C) Hybrid system**
 ```python
 clips = clip_finder.find_clips(transcript)
 if not clips:
-    logger.info("🔄 Fallback: fixed-time clips")
+    logger.info("Fallback: fixed-time clips")
     clips = generate_fixed_time_clips(duration=90)
 ```
 
-**Decisión:** Híbrido. Intenta lo inteligente, fallback a lo simple.
+**Decision:** Hybrid. Try the intelligent approach, fallback to simple.
 
-**Aprendizaje clave:** IA no siempre funciona. Siempre ten un plan B determinista.
+**Key learning:** AI doesn't always work. Always have a deterministic plan B.
 
 ---
 
-## Decisión 5: Presets por tipo de contenido
+## Decision 5: Presets by Content Type
 
-### El problema de configuración
+### The Configuration Problem
 
-**Primera versión del CLI:**
+**First CLI version:**
 ```
 Model size? [tiny/base/small/medium/large]
 Language? [auto/es/en/fr/de...]
@@ -163,19 +163,19 @@ Max clips? [10]
 Method? [clipsai/fixed/hybrid]
 ```
 
-Usuario: "No sé qué poner 😅"
+User: "I don't know what to put"
 
 ### Insight
 
-El tipo de contenido **predice** la configuración óptima:
+Content type **predicts** optimal configuration:
 
-| Tipo | Características | Config óptima |
-|------|-----------------|---------------|
-| Podcast | 2+ speakers, cambios de tema | model=small, diarization=true, clips=1-5min |
-| Livestream | 1 speaker, tema continuo | model=medium, clips=60-90s, method=hybrid |
-| Tutorial | Estructurado, secciones | model=base, clips=45s-3min, method=clipsai |
+| Type | Characteristics | Optimal Config |
+|------|-----------------|----------------|
+| Podcast | 2+ speakers, topic changes | model=small, diarization=true, clips=1-5min |
+| Livestream | 1 speaker, continuous topic | model=medium, clips=60-90s, method=hybrid |
+| Tutorial | Structured, sections | model=base, clips=45s-3min, method=clipsai |
 
-### Solución: Presets
+### Solution: Presets
 
 ```python
 CONTENT_PRESETS = {
@@ -186,29 +186,29 @@ CONTENT_PRESETS = {
 }
 ```
 
-**Flujo del usuario:**
+**User flow:**
 ```
-Content Type: ← Livestream
-[Auto-sugiere: model=medium, clips=60-90s]
-Model size [medium]: ← Usuario solo presiona ENTER
+Content Type: <- Livestream
+[Auto-suggests: model=medium, clips=60-90s]
+Model size [medium]: <- User just presses ENTER
 ```
 
-**Por qué esto funciona mejor:**
-- Usuario piensa en términos de **contenido**, no de **parámetros técnicos**
-- Smart defaults → menos fricción
-- Aún puede cambiar si quiere
+**Why this works better:**
+- User thinks in terms of **content**, not **technical parameters**
+- Smart defaults -> less friction
+- Can still change if wanted
 
 ---
 
-## Decisión 6: Adapter Pattern para WhisperX → ClipsAI
+## Decision 6: Adapter Pattern for WhisperX -> ClipsAI
 
-### El problema de incompatibilidad
+### The Incompatibility Problem
 
 ```python
 # WhisperX output:
 {
   "segments": [
-    {"start": 0.0, "end": 5.2, "text": "Hola mundo", "words": [...]}
+    {"start": 0.0, "end": 5.2, "text": "Hello world", "words": [...]}
   ]
 }
 
@@ -216,7 +216,7 @@ Model size [medium]: ← Usuario solo presiona ENTER
 {
   "char_info": [
     {"char": "H", "start_time": 0.0, "end_time": 0.2, "speaker": "SPEAKER_00"},
-    {"char": "o", "start_time": 0.2, "end_time": 0.4, "speaker": "SPEAKER_00"},
+    {"char": "e", "start_time": 0.2, "end_time": 0.4, "speaker": "SPEAKER_00"},
     ...
   ],
   "time_created": "2025-10-24 ...",
@@ -225,20 +225,20 @@ Model size [medium]: ← Usuario solo presiona ENTER
 }
 ```
 
-**No son compatibles directamente.**
+**Not directly compatible.**
 
-### Opciones
+### Options
 
-**A) Usar el Transcriber de ClipsAI:**
-- ❌ Más lento que WhisperX
-- ❌ Menos preciso para timestamps
-- ❌ Ya tengo WhisperX funcionando
+**A) Use ClipsAI's Transcriber:**
+- Slower than WhisperX
+- Less precise timestamps
+- Already have WhisperX working
 
-**B) Cambiar a otra librería de clips:**
-- ❌ ClipsAI es la mejor para esto
-- ❌ Tiempo de re-implementar
+**B) Switch to another clips library:**
+- ClipsAI is the best for this
+- Time to re-implement
 
-**C) Escribir adaptador:**
+**C) Write adapter:**
 ```python
 def _convert_to_clipsai_format(whisperx_data):
     char_info = []
@@ -259,320 +259,320 @@ def _convert_to_clipsai_format(whisperx_data):
     })
 ```
 
-**Decisión:** Adapter.
+**Decision:** Adapter.
 
 **Debugging hell:**
-- Error 1: `cannot import Transcript` → Es `Transcription`
-- Error 2: Falta campo `time_created` → Agregado
-- Error 3: Falta campo `source_software` → Agregado
-- Error 4: Falta campo `speaker` en char → Agregado
-- Error 5: `transcript=` no funciona → Debe ser posicional
+- Error 1: `cannot import Transcript` -> It's `Transcription`
+- Error 2: Missing `time_created` field -> Added
+- Error 3: Missing `source_software` field -> Added
+- Error 4: Missing `speaker` in char -> Added
+- Error 5: `transcript=` doesn't work -> Must be positional
 
-**Aprendizaje:** Integrar APIs de terceros = siempre hay sorpresas. Leer docs no es suficiente, hay que probar.
+**Learning:** Integrating third-party APIs = always surprises. Reading docs isn't enough, must test.
 
 ---
 
-## Decisión 7: Solo 10 clips → Bug encontrado por el usuario
+## Decision 7: Only 10 Clips -> Bug Found by User
 
-### El bug
+### The Bug
 
-Video de 99 minutos → solo generaba 10 clips.
+99 minute video -> only generated 10 clips.
 
-**Causa:**
+**Cause:**
 ```python
 max_clips = Prompt.ask("Max clips", default="10")
 ```
 
-Default de 10 era para videos cortos. No escalaba.
+Default of 10 was for short videos. Didn't scale.
 
 ### Fix
 
-1. Calcular estimación:
+1. Calculate estimate:
 ```python
 total_duration = transcript[-1]["end"]  # 5958s
 clip_duration = 90
 estimated = total_duration / clip_duration  # 66 clips
 ```
 
-2. Mostrar al usuario:
+2. Show user:
 ```
 Video duration: 99.3 minutes
 Estimated clips with 90s: ~66
-Max clips [100]: ← Nuevo default
+Max clips [100]: <- New default
 ```
 
-3. Cambiar default: 10 → 100
+3. Change default: 10 -> 100
 
-**Aprendizaje:** Los defaults importan. Lo que es razonable para un caso de uso (video corto), rompe otro (livestream).
+**Learning:** Defaults matter. What's reasonable for one use case (short video), breaks another (livestream).
 
 ---
 
-## Decisión 8: Por qué no Diarization (todavía)
+## Decision 8: Why No Diarization (Yet)
 
-**Diarization** = detectar quién habla cuándo.
+**Diarization** = detect who is speaking when.
 
-**Útil para:**
-- Podcasts con 2+ personas
-- Entrevistas
-- Paneles
+**Useful for:**
+- Podcasts with 2+ people
+- Interviews
+- Panels
 
-**Por qué no lo implementé:**
+**Why not implemented:**
 ```python
-# Pyannote diarization requiere:
-1. Token de HuggingFace
-2. 2-3x más tiempo de procesamiento
-3. GPU para ser rápido
+# Pyannote diarization requires:
+1. HuggingFace token
+2. 2-3x more processing time
+3. GPU to be fast
 ```
 
-**Decisión:** Dejar para después.
+**Decision:** Leave for later.
 
-**Configuración actual:**
+**Current configuration:**
 ```python
 "num_speakers": 1  # Hardcoded
-"speaker": "SPEAKER_00"  # Todos los chars
+"speaker": "SPEAKER_00"  # All chars
 ```
 
-**Cuándo agregarlo:** Fase 4 o 5, cuando tenga casos de uso reales que lo necesiten.
+**When to add:** Phase 4 or 5, when there are real use cases that need it.
 
 ---
 
-## Decisión 9: Export con subtítulos embebidos
+## Decision 9: Export with Embedded Subtitles
 
-### El problema
-Los clips necesitan subtítulos para redes sociales, pero ClipsAI no los genera automáticamente.
+### The Problem
+Clips need subtitles for social media, but ClipsAI doesn't generate them automatically.
 
-### Solución implementada
+### Implemented Solution
 
-**Módulo `subtitle_generator.py`:**
-- Genera archivos SRT a partir de transcripción
-- Sincroniza con timestamps de clips
-- Embebe subtítulos en videos finales
+**Module `subtitle_generator.py`:**
+- Generates SRT files from transcription
+- Synchronizes with clip timestamps
+- Embeds subtitles in final videos
 
-**Módulo `video_exporter.py`:**
-- Corta clips del video original
-- Redimensiona a 9:16
-- Embebe subtítulos automáticamente
-- Optimiza para redes sociales
+**Module `video_exporter.py`:**
+- Cuts clips from original video
+- Resizes to 9:16
+- Embeds subtitles automatically
+- Optimizes for social media
 
-**Resultado:**
-- Clips listos para subir directamente
-- Subtítulos sincronizados
-- Formato óptimo para TikTok/Instagram
+**Result:**
+- Clips ready to upload directly
+- Synchronized subtitles
+- Optimal format for TikTok/Instagram
 
 ---
 
-## Decisión 10: Arquitectura modular vs monolítica
+## Decision 10: Modular vs Monolithic Architecture
 
-### Opción considerada: Todo en un archivo
+### Considered Option: Everything in One File
 ```python
-# cliper_monolith.py (1000+ líneas)
+# cliper_monolith.py (1000+ lines)
 def download_and_transcribe_and_clip_and_export():
-    # Todo mezclado
+    # Everything mixed
 ```
 
-### Problemas:
-- ❌ Difícil de debuggear
-- ❌ Imposible de testear
-- ❌ No reutilizable
-- ❌ Código espagueti
+### Problems:
+- Hard to debug
+- Impossible to test
+- Not reusable
+- Spaghetti code
 
-### Solución: Módulos separados
+### Solution: Separate Modules
 ```
 src/
-├── downloader.py      # Una responsabilidad
-├── transcriber.py     # Una responsabilidad  
-├── clips_generator.py # Una responsabilidad
-├── video_exporter.py  # Una responsabilidad
-├── subtitle_generator.py # Una responsabilidad
-└── utils/            # Funciones compartidas
+├── downloader.py      # One responsibility
+├── transcriber.py     # One responsibility
+├── clips_generator.py # One responsibility
+├── video_exporter.py  # One responsibility
+├── subtitle_generator.py # One responsibility
+└── utils/            # Shared functions
 ```
 
-**Ventajas:**
-- ✅ Cada módulo es testeable independientemente
-- ✅ Fácil de debuggear (logs por módulo)
-- ✅ Reutilizable (puedo usar transcriber en otros proyectos)
-- ✅ Mantenible (cambios aislados)
+**Advantages:**
+- Each module testable independently
+- Easy to debug (logs per module)
+- Reusable (can use transcriber in other projects)
+- Maintainable (isolated changes)
 
 ---
 
-## Patrones observados
+## Observed Patterns
 
-### 1. Fail-safe design
-Nunca dejar al usuario sin resultado:
-- ClipsAI falla → fallback a fixed-time
-- User no sabe config → usa preset
-- Proceso se interrumpe → state guardado
+### 1. Fail-Safe Design
+Never leave user without result:
+- ClipsAI fails -> fallback to fixed-time
+- User doesn't know config -> use preset
+- Process interrupted -> state saved
 
-### 2. Progressive enhancement
-Empezar simple, agregar complejidad:
-- V1: Solo download
+### 2. Progressive Enhancement
+Start simple, add complexity:
+- V1: Only download
 - V2: + Transcribe
 - V3: + Clip detection
-- V4: + Export ✅ COMPLETADO
+- V4: + Export (COMPLETED)
 
 ### 3. Transparent AI
-Mostrar al usuario QUÉ hizo la IA:
+Show user WHAT the AI did:
 ```python
 {"method": "fixed_time"}  # vs "clipsai"
 ```
 
-Usuario sabe si fue detección inteligente o corte simple.
+User knows if it was intelligent detection or simple cut.
 
-### 4. Smart defaults with override
-No forzar, sugerir:
+### 4. Smart Defaults with Override
+Don't force, suggest:
 ```
-Model size [medium]: ← Puede cambiar
-Clip duration [4 - Use preset: 60-90s]: ← Puede ignorar
+Model size [medium]: <- Can change
+Clip duration [4 - Use preset: 60-90s]: <- Can ignore
 ```
 
-### 5. User-centered design
-Pensar en el usuario, no en la tecnología:
-- Presets por tipo de contenido
-- Estimaciones automáticas
-- Feedback visual constante
-- Opción de cancelar en cualquier momento
+### 5. User-Centered Design
+Think about user, not technology:
+- Presets by content type
+- Automatic estimations
+- Constant visual feedback
+- Option to cancel at any time
 
 ---
 
-## Tech Stack - Justificación
+## Tech Stack - Justification
 
-**Por qué estas elecciones:**
+**Why these choices:**
 
-- **UV** (no pip): 10-100x más rápido, lock file built-in
-- **Rich** (no print): UI bonita gratis, cero CSS
-- **WhisperX** (no Whisper base): Timestamps palabra-por-palabra
-- **ClipsAI** (no custom ML): Ya resuelto, no reinventar
-- **JSON state** (no DB): Simple, debuggeable, git-friendly
-- **FFmpeg** (no moviepy): Más rápido, más control
-- **yt-dlp** (no pytube): Más robusto, mejor mantenido
+- **UV** (not pip): 10-100x faster, built-in lock file
+- **Rich** (not print): Beautiful UI for free, zero CSS
+- **WhisperX** (not base Whisper): Word-by-word timestamps
+- **ClipsAI** (not custom ML): Already solved, don't reinvent
+- **JSON state** (not DB): Simple, debuggable, git-friendly
+- **FFmpeg** (not moviepy): Faster, more control
+- **yt-dlp** (not pytube): More robust, better maintained
 
 ---
 
-## Métricas actuales - PROYECTO COMPLETADO
+## Current Metrics - PROJECT COMPLETED
 
-**Video de prueba:** Livestream de 99 min
+**Test video:** 99 min Livestream
 
 ```
 Download:     3 min
 Transcription: 25 min (model=medium, CPU M4)
-Clip Detection: 4 seg
+Clip Detection: 4 sec
 Export:       8 min (14 clips)
 Total:        ~36 min
 
 Output:
-- 1,083 segmentos transcritos
-- 52,691 caracteres
-- 14 clips de 90s cada uno
-- Subtítulos embebidos
-- Formato 9:16 listo para redes sociales
-- Cobertura: 99 min completos
+- 1,083 transcribed segments
+- 52,691 characters
+- 14 clips of 90s each
+- Embedded subtitles
+- 9:16 format ready for social media
+- Coverage: full 99 min
 ```
 
-**Bottleneck:** Transcripción (70% del tiempo total)
+**Bottleneck:** Transcription (70% of total time)
 
-**Optimización futura:**
-- Usar `tiny` model para preview rápido
-- Ofrecer `medium` solo si usuario quiere precisión
-- GPU para transcripción más rápida
-
----
-
-## Lecciones aprendidas
-
-### 1. IA no es magia
-- ClipsAI funciona bien en contenido con cambios de tema
-- Fallback determinista siempre necesario
-- Transparencia sobre qué método se usó
-
-### 2. UX > Tecnología
-- Presets > 10 opciones técnicas
-- Estimaciones automáticas > configuración manual
-- Feedback visual > logs invisibles
-
-### 3. Modularidad es clave
-- Cada módulo una responsabilidad
-- Fácil de testear y debuggear
-- Reutilizable en otros proyectos
-
-### 4. Iteración rápida
-- CLI permite probar cambios en minutos
-- Rich hace que se vea profesional desde el inicio
-- JSON state facilita debugging
-
-### 5. Documentar decisiones
-- Este archivo evita repetir errores
-- Explica "por qué", no solo "qué"
-- Útil para futuras mejoras
+**Future optimization:**
+- Use `tiny` model for quick preview
+- Offer `medium` only if user wants precision
+- GPU for faster transcription
 
 ---
 
-## Estado final del proyecto
+## Lessons Learned
 
-### ✅ COMPLETADO - Todas las fases implementadas
+### 1. AI Is Not Magic
+- ClipsAI works well on content with topic changes
+- Deterministic fallback always needed
+- Transparency about which method was used
 
-**Funcionalidades:**
-- ✅ Descarga de YouTube con yt-dlp
-- ✅ Transcripción con WhisperX (timestamps precisos)
-- ✅ Detección de clips con ClipsAI (sistema híbrido)
-- ✅ Export de clips en formato 9:16
-- ✅ Generación y embebido de subtítulos
-- ✅ CLI profesional con Rich
-- ✅ State manager persistente
-- ✅ Presets inteligentes por tipo de contenido
-- ✅ Manejo robusto de errores
+### 2. UX > Technology
+- Presets > 10 technical options
+- Automatic estimates > manual configuration
+- Visual feedback > invisible logs
 
-**Archivos generados:**
-- ✅ 14 clips de 90s cada uno
-- ✅ Subtítulos en formato SRT
-- ✅ Videos en formato 9:16
-- ✅ Metadata completa de clips
+### 3. Modularity Is Key
+- Each module one responsibility
+- Easy to test and debug
+- Reusable in other projects
 
-**Listo para:**
-- ✅ Uso en producción
-- ✅ Distribución como App Bundle
-- ✅ Contribuciones de la comunidad
-- ✅ Extensión con nuevas funcionalidades
+### 4. Rapid Iteration
+- CLI allows testing changes in minutes
+- Rich makes it look professional from the start
+- JSON state facilitates debugging
+
+### 5. Document Decisions
+- This file prevents repeating mistakes
+- Explains "why", not just "what"
+- Useful for future improvements
 
 ---
 
-## Próximos pasos opcionales
+## Final Project State
 
-### Distribución
-- App Bundle (.app) para Mac
+### COMPLETED - All Phases Implemented
+
+**Features:**
+- YouTube download with yt-dlp
+- Transcription with WhisperX (precise timestamps)
+- Clip detection with ClipsAI (hybrid system)
+- Clip export in 9:16 format
+- Subtitle generation and embedding
+- Professional CLI with Rich
+- Persistent state manager
+- Intelligent presets by content type
+- Robust error handling
+
+**Generated files:**
+- 14 clips of 90s each
+- Subtitles in SRT format
+- Videos in 9:16 format
+- Complete clip metadata
+
+**Ready for:**
+- Production use
+- Distribution as App Bundle
+- Community contributions
+- Extension with new features
+
+---
+
+## Optional Next Steps
+
+### Distribution
+- App Bundle (.app) for Mac
 - DMG installer
 - Homebrew formula
 
-### Nuevas funcionalidades
-- Diarización de speakers (Pyannote)
-- Detección de caras para auto-crop
-- Integración con APIs de redes sociales
-- Batch processing de múltiples videos
+### New Features
+- Speaker diarization (Pyannote)
+- Face detection for auto-crop
+- Social media API integration
+- Batch processing multiple videos
 
-### Optimizaciones
-- GPU para transcripción más rápida
-- Procesamiento paralelo de clips
-- Cache inteligente de modelos
-- Compresión optimizada por plataforma
-
----
-
-## Conclusión
-
-CLIPER funciona porque:
-
-1. **Scope claro:** Hace una cosa (clips) bien
-2. **Fail-safe:** Siempre da resultado
-3. **Fast iteration:** CLI permite iterar rápido
-4. **User-centered:** Presets > 10 opciones técnicas
-5. **Modular:** Fácil de mantener y extender
-6. **Transparente:** Usuario sabe qué hizo la IA
-
-**Lección principal:** IA es una herramienta, no magia. Siempre ten fallback determinista.
-
-**Resultado:** Herramienta completa, funcional y lista para producción.
+### Optimizations
+- GPU for faster transcription
+- Parallel clip processing
+- Intelligent model caching
+- Platform-optimized compression
 
 ---
 
-*Documentado: 2025-10-24*
-*Estado: PROYECTO COMPLETADO - Todas las fases implementadas*
-*Versión: 1.0.0 - Ready for production*
+## Conclusion
+
+CLIPER works because:
+
+1. **Clear scope:** Does one thing (clips) well
+2. **Fail-safe:** Always gives result
+3. **Fast iteration:** CLI allows quick iteration
+4. **User-centered:** Presets > 10 technical options
+5. **Modular:** Easy to maintain and extend
+6. **Transparent:** User knows what AI did
+
+**Main lesson:** AI is a tool, not magic. Always have deterministic fallback.
+
+**Result:** Complete, functional tool ready for production.
+
+---
+
+*Documented: 2025-10-24*
+*Status: PROJECT COMPLETED - All phases implemented*
+*Version: 1.0.0 - Ready for production*

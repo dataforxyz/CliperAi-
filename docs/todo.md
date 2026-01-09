@@ -1,23 +1,41 @@
-- [ ] make a fully install download in make. currently there is a lot of things that is only downloaded as needed. which is anoying if you want the full thing. like if you were building a docer and some things had to reddownload each time. 
-- [ ] show a clicable link for the finished video
-- [ ] dont ship aicdmx logo in assets ship a demo logo. 
-- [ ] make it so i can pass it all as terminal vars. so i just run a script with things presetup and it just does start to finish.
-- [ ] need a way to easily double check and fix the captions
-- [ ] identify and add multiple human in the loop points
-- [ ] need a way to not do clipping other then to remove preamble or post amble. like words in the beging not needed or just dead space. 
-- [x] right now videos must be in the downloads folder. so we need to make it copy the local files to there or allow files from anywhere
-- [x] bulk process. so we do the same thing for a bunch of selected videos
-- [x] make it so we dont have to put the videos in  a specific folder to process. we should be able to select any video and just process 
-- [ ] add a way to set output folder. for batching we should place the whole batch in a sub folder of that. 
-- [x] make a prompts folder. we should keep all the prompts i md files
-- [x] add system to pick font, color and size for subitles
-- [ ] add subtitle control. allowing for how things are split by ch and word both. so max and min ch and words
-- [ ] add some subtitle "types" so one would be like 1 word a time, another would be only important words. another would be multiple words but highlight the current word. in a specified color
-- [x] bump version tooling (`uv run bump2version ...`) + Makefile command
-- [ ] silance removal option. so cut down silence if its more then n milseconds and make it only y milseconds SpeechBrain VAD
-- [ ] add Diarization so we know who said what. we can have diffrent color subtitles. whisperx already has a version of this. pyannote has one as well. 
-- [x] have settings. where we have all the defualt settings. add a tui shortcut to edit it. in it have a way to limit the max cpu used by ffmpeg. both as a function of -1 meaning leave one cpu unused. and 5 meaning use 5 cpus.
-- [ ] normalize sound. prevent peeks and vallies.
+# CLIPER Todo List
 
-- [ ] name the shorts based the transcription
-- [ ] fix the output dir. there is way to many 
+## High Priority
+
+- [ ] Full installation build - Create `make install-full` that downloads all dependencies upfront (Whisper models, MediaPipe, etc.) for Docker builds and offline environments
+- [ ] Clickable video links - Show clickable file:// URLs for exported videos in terminal output
+- [ ] Custom output directory - Add `--output-dir` flag and `CLIPER_OUTPUT_DIR` environment variable
+- [ ] Terminal automation - Allow passing all settings as terminal vars for fully automated start-to-finish processing
+
+## Medium Priority
+
+- [ ] Caption review workflow - Add a way to easily double-check and fix AI-generated captions before export
+- [ ] Human-in-the-loop points - Identify and add review/approval steps throughout pipeline (clip boundaries, classifications, captions)
+- [ ] Trim-only mode - Option to remove preamble/postamble without AI clip detection
+
+## Subtitle Enhancements
+
+- [ ] Subtitle segmentation control - Max/min characters and words per subtitle, line break rules
+- [ ] Subtitle display types:
+  - Word-by-word (karaoke style)
+  - Key words only (AI-extracted important words)
+  - Multi-word with highlight (highlight current word dynamically)
+
+## Audio Processing
+
+- [ ] Silence removal - Cut down silence if > N milliseconds (SpeechBrain VAD)
+- [ ] Audio normalization - Prevent peaks and valleys in audio levels
+- [ ] Speaker diarization - Different color subtitles per speaker (WhisperX/Pyannote)
+
+## Output & Organization
+
+- [ ] Auto-name shorts - Name clips based on transcription content
+- [ ] Fix output directory structure - Simplify the nested output directories
+- [ ] Replace AICDMX logo - Ship with a generic demo logo instead
+
+## Analytics (Future)
+
+- [ ] Copy stats command - `show-copys-stats` to view engagement metrics
+- [ ] Filter clips by metadata
+- [ ] Export CSV reports
+- [ ] Compare multiple generations
