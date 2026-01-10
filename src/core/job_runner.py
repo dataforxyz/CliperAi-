@@ -31,9 +31,10 @@ class JobRunner:
     UI-agnósticos para que Textual/CLI/GUI puedan observar el progreso.
     """
 
-    def __init__(self, state_manager, emit: EmitFn):
+    def __init__(self, state_manager, emit: EmitFn, *, cli_output_dir: Optional[str] = None):
         self.state_manager = state_manager
         self.emit = emit
+        self._cli_output_dir = cli_output_dir
         self._dependency_ok_cache: set[tuple[str, str, str, str]] = set()
 
     def run_job(self, job: JobSpec) -> JobStatus:
@@ -100,14 +101,58 @@ class JobRunner:
         cleaned = re.sub(r"_+", "_", cleaned).strip("._-")
         return (cleaned or "run")[:max_len]
 
+    def _resolve_output_dir(self) -> Path:
+        """Resolve output directory with priority: CLI arg > env var > config setting > default.
+
+        Returns:
+            Resolved and validated output directory path.
+
+        Raises:
+            ValueError: If the path is invalid or not writable.
+        """
+        import os
+
+        # Priority 1: CLI argument
+        if self._cli_output_dir:
+            output_path = Path(self._cli_output_dir)
+        else:
+            # Priority 2: Environment variable
+            env_output_dir = os.environ.get("CLIPER_OUTPUT_DIR", "").strip()
+            if env_output_dir:
+                output_path = Path(env_output_dir)
+            else:
+                # Priority 3: Config setting (or default)
+                config_output_dir = self.state_manager.get_setting("output_dir", "output/")
+                output_path = Path(config_output_dir) if config_output_dir else Path("output/")
+
+        # Resolve relative paths against cwd
+        if not output_path.is_absolute():
+            output_path = Path.cwd() / output_path
+        output_path = output_path.resolve()
+
+        # Create directory if it doesn't exist
+        try:
+            output_path.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise ValueError(f"Cannot create output directory '{output_path}': {e}") from e
+
+        # Validate writability
+        if not os.access(output_path, os.W_OK):
+            raise ValueError(f"Output directory is not writable: {output_path}")
+
+        return output_path
+
     def _ensure_run_output_dir(self, *, job_id: str, video_ids: list[str]) -> Path:
         """
         Crea estructura de directorios para el job:
-        - output/.cache/{job_id}/ para archivos intermedios (transcripts, clips metadata, SRTs)
-        - output/exports/ para videos finales (estructura plana)
+        - {output_dir}/.cache/{job_id}/ para archivos intermedios (transcripts, clips metadata, SRTs)
+        - {output_dir}/exports/ para videos finales (estructura plana)
         """
+        # Resolve base output directory with priority resolution
+        base_output_dir = self._resolve_output_dir()
+
         # Cache dir para archivos intermedios
-        cache_dir = (Path("output") / ".cache" / job_id).resolve()
+        cache_dir = (base_output_dir / ".cache" / job_id).resolve()
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Exports dir para videos finales
@@ -121,8 +166,9 @@ class JobRunner:
         return cache_dir
 
     def _get_exports_dir(self) -> Path:
-        """Retorna el directorio de exports (output/exports/)."""
-        exports_dir = (Path("output") / "exports").resolve()
+        """Retorna el directorio de exports ({output_dir}/exports/)."""
+        base_output_dir = self._resolve_output_dir()
+        exports_dir = (base_output_dir / "exports").resolve()
         exports_dir.mkdir(parents=True, exist_ok=True)
         return exports_dir
 

@@ -288,6 +288,37 @@ def _normalize_auto_name_max_chars(value: int) -> int:
     return value
 
 
+def _normalize_output_dir(value: str) -> str:
+    """Normaliza y valida el directorio de salida.
+
+    - Handles both relative and absolute paths
+    - Creates directory if it doesn't exist
+    - Validates writability
+    """
+    from pathlib import Path
+    import os
+
+    path_str = (value or "").strip() or "output/"
+    path = Path(path_str)
+
+    # Resolve relative paths against cwd
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    path = path.resolve()
+
+    # Create directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise ValueError(f"Cannot create output directory '{path}': {e}") from e
+
+    # Validate writability
+    if not os.access(path, os.W_OK):
+        raise ValueError(f"Output directory is not writable: {path}")
+
+    return str(path)
+
+
 APP_SETTING_GROUPS: Tuple[SettingGroup, ...] = (
     SettingGroup(key="branding", title="Branding", description="Logo and watermark settings."),
     SettingGroup(key="clip_generation", title="Clip Generation", description="Duration and trimming settings for clip detection."),
@@ -560,6 +591,16 @@ APP_SETTINGS: Tuple[SettingDefinition, ...] = (
         normalize=_normalize_sample_rate,
     ),
     # --- Output settings ---
+    SettingDefinition(
+        key="output_dir",
+        group="output",
+        label="Output directory:",
+        python_type=str,
+        default="output/",
+        placeholder="output/ or /absolute/path/to/output",
+        help_text="Base directory for exported videos. Relative paths are resolved from current working directory.",
+        normalize=_normalize_output_dir,
+    ),
     SettingDefinition(
         key="auto_name_method",
         group="output",
