@@ -1,7 +1,7 @@
 {
   "logo_path": "assets/logo.png",
   "logo_position": "top-right",
-  "logo_scale": 0.1,
+  "logo_scale": 0.2,
   "min_clip_duration": 30,
   "max_clip_duration": 90,
   "min_clips": 3,
@@ -25,6 +25,7 @@
   "enable_face_tracking": false,
   "face_tracking_strategy": "keep_in_frame",
   "face_tracking_sample_rate": 3,
+  "output_dir": "/home/sumwey/PrograminProjects/CliperAi-/output",
   "auto_name_method": "filename",
   "auto_name_max_chars": 40,
   "auto_name_word_count": 5,

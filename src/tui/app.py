@@ -159,6 +159,7 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         self.query_one("#add_logo", Checkbox).value = True
         self.query_one("#logo_path_input", Input).value = settings.get("logo_path", "assets/logo.png")
         self.query_one("#logo_position", Input).value = settings.get("logo_position", "top-right")
+        self.query_one("#logo_scale", Input).value = str(settings.get("logo_scale", 0.2))
         self.query_one("#enable_face_tracking", Checkbox).value = settings.get("enable_face_tracking", False)
         self.query_one("#face_tracking_strategy", Input).value = settings.get("face_tracking_strategy", "keep_in_frame")
 
@@ -213,6 +214,7 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         add_logo = bool(self.query_one("#add_logo", Checkbox).value)
         self.query_one("#logo_path_input", Input).disabled = not add_logo
         self.query_one("#logo_position", Input).disabled = not add_logo
+        self.query_one("#logo_scale", Input).disabled = not add_logo
 
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
         if event.checkbox.id == "add_logo":
@@ -258,6 +260,10 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                         yield Static("Logo position:", classes="field-label")
                         yield Static("Options: top-right, top-left, bottom-right, bottom-left", classes="help-text")
                         yield Input(placeholder="top-right", id="logo_position")
+                    with Vertical(classes="setting-field"):
+                        yield Static("Logo size:", classes="field-label")
+                        yield Static("Scale relative to video (0.1 = 10%, 0.2 = 20%)", classes="help-text")
+                        yield Input(placeholder="0.2", id="logo_scale")
 
                 # Face tracking settings
                 with Vertical(classes="settings-group"):
@@ -329,6 +335,12 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             logo_position = self.query_one("#logo_position", Input).value.strip().lower()
             if logo_position in {"top-right", "top-left", "bottom-right", "bottom-left"}:
                 result["logo_position"] = logo_position
+            try:
+                logo_scale = float(self.query_one("#logo_scale", Input).value.strip() or "0.2")
+                if 0.01 <= logo_scale <= 1.0:
+                    result["logo_scale"] = logo_scale
+            except ValueError:
+                pass
 
             # Face tracking settings
             result["enable_face_tracking"] = self.query_one("#enable_face_tracking", Checkbox).value
