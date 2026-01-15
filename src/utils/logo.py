@@ -148,6 +148,7 @@ def list_logo_candidates(
     *,
     saved_logo_path: Optional[str] = None,
     builtin_logo_path: str = DEFAULT_BUILTIN_LOGO_PATH,
+    logos_dir: str = "assets/logos",
 ) -> List[Dict[str, str]]:
     """
     List valid logo options for selection UIs.
@@ -156,6 +157,11 @@ def list_logo_candidates(
       - name: human-friendly label
       - setting_value: value suitable for job/settings ("assets/..." or absolute path)
       - resolved_path: absolute resolved path to the image file
+
+    Scans:
+      1. Built-in logo (assets/logo.png)
+      2. Saved logo path from settings (if valid)
+      3. All logo files in assets/logos/ directory
     """
     resolved_seen: set[str] = set()
     options: List[Dict[str, str]] = []
@@ -180,5 +186,15 @@ def list_logo_candidates(
     if saved_logo_path:
         saved_name = Path(str(saved_logo_path)).expanduser().name or "Saved"
         _add(f"Saved ({saved_name})", saved_logo_path)
+
+    # Scan logos directory for additional options
+    logos_path = _get_app_root() / logos_dir
+    if logos_path.is_dir():
+        for logo_file in sorted(logos_path.iterdir()):
+            if logo_file.is_file() and _is_allowed_logo_file(logo_file):
+                # Use relative path for portability
+                relative_path = f"{logos_dir}/{logo_file.name}"
+                label = logo_file.stem.replace("_", " ").replace("-", " ").title()
+                _add(label, relative_path)
 
     return options

@@ -177,12 +177,11 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         self._logo_key_to_path.clear()
         self._logo_options_count = len(candidates)
 
-        # Only show selection when there are multiple valid options.
+        # Always show logo selection when logos are available
         logo_selection_field = self.query_one("#logo_selection_field", Vertical)
-        if self._logo_options_count > 1:
+        if self._logo_options_count >= 1:
             logo_selection_field.display = True
             logo_table.display = True
-            logo_table.add_row("Use default (no override)", "", key="__default__")
             for idx, opt in enumerate(candidates):
                 key = f"__logo_{idx}__"
                 self._logo_key_to_path[key] = opt["setting_value"]
@@ -357,10 +356,10 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             # Logo settings
             add_logo = bool(self.query_one("#add_logo", Checkbox).value)
             result["add_logo"] = add_logo
-            if add_logo and self.query_one("#logo_table", DataTable).display and self._logo_options_count > 1:
+            if add_logo and self.query_one("#logo_table", DataTable).display and self._logo_options_count >= 1:
                 logo_table = self.query_one("#logo_table", DataTable)
-                selected_logo_key = self._get_selected_row_key_value(logo_table) or "__default__"
-                if selected_logo_key != "__default__":
+                selected_logo_key = self._get_selected_row_key_value(logo_table)
+                if selected_logo_key:
                     selected_path = self._logo_key_to_path.get(selected_logo_key)
                     if selected_path:
                         result["logo_path"] = str(selected_path)
