@@ -33,7 +33,6 @@ from src.core.dependency_manager import (
     ensure_all_required,
 )
 from src.tui.setup_wizard import SetupWizardModal
-from src.utils.logo import list_logo_candidates
 
 
 class AddVideosModal(ModalScreen[Optional[Dict[str, object]]]):
@@ -145,8 +144,6 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         self._state_manager = state_manager
         self._choices = choices or []
         self._choice_key_to_path: Dict[str, str] = {}
-        self._logo_key_to_path: Dict[str, Optional[str]] = {}
-        self._logo_options_count: int = 0
 
     def on_mount(self) -> None:
         # Load current settings as defaults
@@ -160,39 +157,10 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         self._update_subtitle_preset_desc(subtitle_preset)
 
         self.query_one("#add_logo", Checkbox).value = True
+        self.query_one("#logo_path_input", Input).value = settings.get("logo_path", "assets/logo.png")
         self.query_one("#logo_position", Input).value = settings.get("logo_position", "top-right")
         self.query_one("#enable_face_tracking", Checkbox).value = settings.get("enable_face_tracking", False)
         self.query_one("#face_tracking_strategy", Input).value = settings.get("face_tracking_strategy", "keep_in_frame")
-
-        # Logo candidates (built-in + saved) for optional per-run override.
-        logo_table = self.query_one("#logo_table", DataTable)
-        logo_table.cursor_type = "row"
-        try:
-            logo_table.clear(columns=True)  # type: ignore[call-arg]
-        except TypeError:
-            logo_table.clear()
-        logo_table.add_columns("Logo", "Location")
-
-        candidates = list_logo_candidates(saved_logo_path=settings.get("logo_path"))
-        self._logo_key_to_path.clear()
-        self._logo_options_count = len(candidates)
-
-        # Always show logo selection when logos are available
-        logo_selection_field = self.query_one("#logo_selection_field", Vertical)
-        if self._logo_options_count >= 1:
-            logo_selection_field.display = True
-            logo_table.display = True
-            for idx, opt in enumerate(candidates):
-                key = f"__logo_{idx}__"
-                self._logo_key_to_path[key] = opt["setting_value"]
-                logo_table.add_row(opt["name"], opt["setting_value"], key=key)
-            try:
-                logo_table.move_cursor(row=0, column=0, animate=False)
-            except Exception:
-                pass
-        else:
-            logo_selection_field.display = False
-            logo_table.display = False
 
         self._sync_logo_controls()
 
@@ -243,9 +211,8 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
 
     def _sync_logo_controls(self) -> None:
         add_logo = bool(self.query_one("#add_logo", Checkbox).value)
+        self.query_one("#logo_path_input", Input).disabled = not add_logo
         self.query_one("#logo_position", Input).disabled = not add_logo
-        table = self.query_one("#logo_table", DataTable)
-        table.disabled = not add_logo
 
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
         if event.checkbox.id == "add_logo":
@@ -283,11 +250,10 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                 with Vertical(classes="settings-group"):
                     yield Static("Logo / Watermark", classes="group-title")
                     yield Checkbox("Add logo to video", id="add_logo", value=True)
-                    with Vertical(classes="setting-field", id="logo_selection_field"):
-                        yield Static("Logo file (this run):", classes="field-label")
-                        yield Static("Pick a logo override, or use default.", classes="help-text")
-                        table = DataTable(id="logo_table")
-                        yield table
+                    with Vertical(classes="setting-field"):
+                        yield Static("Logo file:", classes="field-label")
+                        yield Static("Path to any PNG/JPG image on your computer", classes="help-text")
+                        yield Input(placeholder="assets/logo.png", id="logo_path_input")
                     with Vertical(classes="setting-field"):
                         yield Static("Logo position:", classes="field-label")
                         yield Static("Options: top-right, top-left, bottom-right, bottom-left", classes="help-text")
@@ -356,13 +322,10 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             # Logo settings
             add_logo = bool(self.query_one("#add_logo", Checkbox).value)
             result["add_logo"] = add_logo
-            if add_logo and self.query_one("#logo_table", DataTable).display and self._logo_options_count >= 1:
-                logo_table = self.query_one("#logo_table", DataTable)
-                selected_logo_key = self._get_selected_row_key_value(logo_table)
-                if selected_logo_key:
-                    selected_path = self._logo_key_to_path.get(selected_logo_key)
-                    if selected_path:
-                        result["logo_path"] = str(selected_path)
+            if add_logo:
+                logo_path = self.query_one("#logo_path_input", Input).value.strip()
+                if logo_path:
+                    result["logo_path"] = logo_path
             logo_position = self.query_one("#logo_position", Input).value.strip().lower()
             if logo_position in {"top-right", "top-left", "bottom-right", "bottom-left"}:
                 result["logo_position"] = logo_position
@@ -649,6 +612,9 @@ class CliperTUI(App):
     TITLE = "CLIPER"
     SUB_TITLE = "Video Clipper (Textual)"
 
+    # Maximum log entries to keep in buffer
+    MAX_LOG_BUFFER = 1000
+
     CSS = """
     Screen { layout: vertical; }
     #main { height: 1fr; }
@@ -691,6 +657,19 @@ class CliperTUI(App):
         height: 1fr;
         min-height: 8;
         border: solid gray;
+    }
+
+    /* Logs header with copy button */
+    #logs-header {
+        height: auto;
+        padding: 0 1;
+    }
+    #logs-header Static {
+        width: 1fr;
+    }
+    #copy_logs {
+        width: auto;
+        min-width: 12;
     }
 
     /* Size warning overlay */
@@ -825,6 +804,7 @@ class CliperTUI(App):
         Binding("s", "settings", "Settings"),
         Binding("w", "setup_wizard", "Setup Wizard"),
         Binding("d", "dependencies", "Dependencies"),
+        Binding("l", "copy_logs", "Copy Logs"),
         Binding("backslash", "toggle_sidebar", "Toggle Sidebar"),
         Binding("q", "quit", "Quit"),
     ]
@@ -843,6 +823,7 @@ class CliperTUI(App):
         self._selected_final_video_path: Optional[Path] = None
         self._startup_dep_check_done = False
         self._startup_wizard_check_done = False
+        self._log_buffer: List[str] = []
 
     def _load_selected_job_open_targets(self, job_id: Optional[str]) -> None:
         run_output_dir: Optional[Path] = None
@@ -878,6 +859,36 @@ class CliperTUI(App):
         except Exception:
             pass
 
+    def _write_log(self, message: str) -> None:
+        """Write a message to the log widget and buffer for copying."""
+        # Strip Rich markup for plain text buffer
+        import re
+        plain_message = re.sub(r'\[/?[^\]]+\]', '', message)
+        self._log_buffer.append(plain_message)
+
+        # Trim buffer if it exceeds max size
+        if len(self._log_buffer) > self.MAX_LOG_BUFFER:
+            self._log_buffer = self._log_buffer[-self.MAX_LOG_BUFFER:]
+
+        try:
+            logs = self.query_one("#logs", RichLog)
+            logs.write(message)
+        except Exception:
+            pass
+
+    def _copy_logs_to_clipboard(self) -> None:
+        """Copy all log messages to clipboard."""
+        if not self._log_buffer:
+            self._write_log("[yellow]No logs to copy.[/yellow]")
+            return
+
+        log_text = "\n".join(self._log_buffer)
+        try:
+            self.copy_to_clipboard(log_text)
+            self._write_log(f"[green]Copied {len(self._log_buffer)} log entries to clipboard.[/green]")
+        except Exception as e:
+            self._write_log(f"[red]Failed to copy logs:[/red] {e}")
+
     def compose(self) -> ComposeResult:
         yield Header()
         yield Static(f"Terminal too small! Resize to at least {MIN_WIDTH}x{MIN_HEIGHT}", id="size-warning")
@@ -890,6 +901,9 @@ class CliperTUI(App):
                     yield Button("Open Video", id="open_video", disabled=True)
                     yield Button("Open Output Folder", id="open_output")
                 yield DataTable(id="jobs")
+                with Horizontal(id="logs-header"):
+                    yield Static("Logs")
+                    yield Button("Copy Logs", id="copy_logs")
                 yield RichLog(id="logs", markup=True)
         yield Footer()
 
@@ -902,8 +916,7 @@ class CliperTUI(App):
         jobs.cursor_type = "row"
         jobs.add_columns("Job", "State", "Progress", "Videos", "Steps")
 
-        logs = self.query_one("#logs", RichLog)
-        logs.write("[dim]Ready.[/dim]")
+        self._write_log("[dim]Ready.[/dim]")
 
         # Check initial size and apply responsive layout
         self._update_layout_for_size(self.size.width, self.size.height)
@@ -956,8 +969,7 @@ class CliperTUI(App):
 
     def _check_startup_dependencies(self) -> None:
         """Check for missing dependencies on startup and offer to install."""
-        logs = self.query_one("#logs", RichLog)
-        logs.write("[dim]Checking dependencies...[/dim]")
+        self._write_log("[dim]Checking dependencies...[/dim]")
 
         def check_in_background() -> None:
             specs = build_required_dependencies()
@@ -965,14 +977,14 @@ class CliperTUI(App):
 
             def show_result():
                 if missing:
-                    logs.write(f"[yellow]Missing {len(missing)} dependencies. Press 'd' to install.[/yellow]")
+                    self._write_log(f"[yellow]Missing {len(missing)} dependencies. Press 'd' to install.[/yellow]")
                     # Auto-show modal with missing dependencies
                     self.push_screen(
                         DependencyModal(specs=specs, auto_install=False),
                         callback=self._on_dependency_modal_dismissed,
                     )
                 else:
-                    logs.write("[green]All dependencies ready.[/green]")
+                    self._write_log("[green]All dependencies ready.[/green]")
 
             self.call_from_thread(show_result)
 
@@ -989,11 +1001,10 @@ class CliperTUI(App):
     def _on_dependency_modal_dismissed(self, result: Optional[Dict[str, object]]) -> None:
         if not result:
             return
-        logs = self.query_one("#logs", RichLog)
         if result.get("cancelled"):
-            logs.write("[yellow]Dependency check cancelled.[/yellow]")
+            self._write_log("[yellow]Dependency check cancelled.[/yellow]")
         else:
-            logs.write("[green]Dependency check complete.[/green]")
+            self._write_log("[green]Dependency check complete.[/green]")
 
     def _show_setup_wizard(self) -> None:
         """Show the setup wizard modal."""
@@ -1010,13 +1021,12 @@ class CliperTUI(App):
         )
 
     def _on_setup_wizard_dismissed(self, result: Optional[Dict[str, object]]) -> None:
-        logs = self.query_one("#logs", RichLog)
         if not result:
-            logs.write("[yellow]Setup wizard cancelled.[/yellow]")
+            self._write_log("[yellow]Setup wizard cancelled.[/yellow]")
             # Still mark as completed so it doesn't show again
             self.state_manager.mark_wizard_completed()
         else:
-            logs.write("[green]Setup complete! Settings saved.[/green]")
+            self._write_log("[green]Setup complete! Settings saved.[/green]")
 
         # Now check dependencies after wizard is done
         if not self._startup_dep_check_done:
@@ -1073,6 +1083,10 @@ class CliperTUI(App):
     def action_refresh(self) -> None:
         self.refresh_all()
 
+    def action_copy_logs(self) -> None:
+        """Copy all logs to clipboard (keyboard shortcut: l)."""
+        self._copy_logs_to_clipboard()
+
     def action_toggle_select(self) -> None:
         table = self.query_one("#library", DataTable)
         if table.cursor_row is None:
@@ -1111,15 +1125,14 @@ class CliperTUI(App):
         paths_raw = str(result.get("paths") or "").strip()
         recursive = bool(result.get("recursive"))
 
-        logs = self.query_one("#logs", RichLog)
-
         if url:
-            logs.write(f"[cyan]Downloading:[/cyan] {url}")
+            self._write_log(f"[cyan]Downloading:[/cyan] {url}")
 
             def download_and_register() -> None:
                 from src.downloader import YoutubeDownloader
                 from src.core.dependency_manager import DependencyProgress, DependencyReporter, DependencyStatus
 
+                write_log = self._write_log
                 call_from_thread = self.call_from_thread
 
                 class _TUIDownloadReporter(DependencyReporter):
@@ -1134,12 +1147,12 @@ class CliperTUI(App):
                             if event.message == self._last_line:
                                 return
                             self._last_line = event.message
-                            self._call_from_thread(logs.write, f"[dim]{event.message}[/dim]")
+                            self._call_from_thread(write_log, f"[dim]{event.message}[/dim]")
                         elif event.status == DependencyStatus.ERROR:
-                            self._call_from_thread(logs.write, f"[red]{event.description} failed:[/red] {event.message}")
+                            self._call_from_thread(write_log, f"[red]{event.description} failed:[/red] {event.message}")
                         elif event.status == DependencyStatus.DONE:
                             if event.message:
-                                self._call_from_thread(logs.write, f"[green]Saved:[/green] {event.message}")
+                                self._call_from_thread(write_log, f"[green]Saved:[/green] {event.message}")
 
                     def is_cancelled(self) -> bool:
                         return False
@@ -1147,12 +1160,12 @@ class CliperTUI(App):
                 downloader = YoutubeDownloader(download_dir="downloads", reporter=_TUIDownloadReporter(call_from_thread))
                 downloaded = downloader.download(url)
                 if not downloaded:
-                    self.call_from_thread(logs.write, f"[red]Download failed:[/red] {url}")
+                    self.call_from_thread(write_log, f"[red]Download failed:[/red] {url}")
                     return
 
                 video_path = Path(downloaded)
                 register_local_videos(self.state_manager, [video_path])
-                self.call_from_thread(logs.write, f"[green]Downloaded:[/green] {video_path.name}")
+                self.call_from_thread(write_log, f"[green]Downloaded:[/green] {video_path.name}")
                 self.call_from_thread(self.refresh_all)
 
             self.run_worker(download_and_register, thread=True)
@@ -1167,18 +1180,17 @@ class CliperTUI(App):
                         registered_count = len(registered)
                     self.call_from_thread(self._on_local_videos_registered, errors, registered_count)
                 except Exception as e:
-                    self.call_from_thread(logs.write, f"[red]Failed to register local videos:[/red] {e}")
+                    self.call_from_thread(self._write_log, f"[red]Failed to register local videos:[/red] {e}")
 
             self.run_worker(collect_and_register_local, thread=True)
 
     def _on_local_videos_registered(self, errors: List[str], registered_count: int) -> None:
-        logs = self.query_one("#logs", RichLog)
         for err in errors:
-            logs.write(f"[yellow]{err}[/yellow]")
+            self._write_log(f"[yellow]{err}[/yellow]")
         if registered_count <= 0:
-            logs.write("[yellow]No supported videos found to register.[/yellow]")
+            self._write_log("[yellow]No supported videos found to register.[/yellow]")
             return
-        logs.write(f"[green]Registered {registered_count} video(s).[/green]")
+        self._write_log(f"[green]Registered {registered_count} video(s).[/green]")
         self.refresh_all()
 
     def _selected_or_current_video_ids(self) -> List[str]:
@@ -1191,7 +1203,7 @@ class CliperTUI(App):
     def _enqueue_job(self, steps: List[JobStep], *, settings: Optional[Dict[str, object]] = None) -> None:
         video_ids = self._selected_or_current_video_ids()
         if not video_ids:
-            self.query_one("#logs", RichLog).write("[yellow]No videos selected.[/yellow]")
+            self._write_log("[yellow]No videos selected.[/yellow]")
             return
 
         job_id = self.state_manager.create_job_id()
@@ -1215,15 +1227,14 @@ class CliperTUI(App):
     def _on_settings_dismissed(self, result: Optional[Dict[str, object]]) -> None:
         if not result:
             return
-        logs = self.query_one("#logs", RichLog)
         changed = ", ".join(sorted(result.keys()))
-        logs.write(f"[green]Settings saved:[/green] {changed}")
+        self._write_log(f"[green]Settings saved:[/green] {changed}")
         self.refresh_all()
 
     async def action_enqueue_process_shorts(self) -> None:
         video_ids = self._selected_or_current_video_ids()
         if not video_ids:
-            self.query_one("#logs", RichLog).write("[yellow]No videos selected.[/yellow]")
+            self._write_log("[yellow]No videos selected.[/yellow]")
             return
 
         # Keep this flow explicit: transcription + shorts export, no analysis / clip generation.
@@ -1258,7 +1269,7 @@ class CliperTUI(App):
         """Open the custom shorts modal (Shift+P) for configuring shorts export options."""
         video_ids = self._selected_or_current_video_ids()
         if not video_ids:
-            self.query_one("#logs", RichLog).write("[yellow]No videos selected.[/yellow]")
+            self._write_log("[yellow]No videos selected.[/yellow]")
             return
 
         # For single video with exported clips, show source selection
@@ -1313,7 +1324,7 @@ class CliperTUI(App):
             settings["export"] = export_settings
 
         self._enqueue_job([JobStep.TRANSCRIBE, JobStep.EXPORT_SHORTS], settings=settings)
-        self.query_one("#logs", RichLog).write(
+        self._write_log(
             f"[cyan]Custom shorts job enqueued[/cyan] - Logo: {shorts_settings.get('add_logo')}, "
             f"Face tracking: {export_settings.get('enable_face_tracking')}, "
             f"Trim: {trim_start}ms/{trim_end}ms"
@@ -1332,7 +1343,7 @@ class CliperTUI(App):
         try:
             spec = JobSpec.from_dict(spec_dict)
         except Exception as e:
-            self.query_one("#logs", RichLog).write(f"[red]Invalid job spec {next_job_id}: {e}[/red]")
+            self._write_log(f"[red]Invalid job spec {next_job_id}: {e}[/red]")
             self.state_manager.update_job_status(next_job_id, {"state": "failed", "error": str(e)})
             self.refresh_jobs()
             return
@@ -1360,57 +1371,57 @@ class CliperTUI(App):
             self.selected_job_id = job_id
         self._load_selected_job_open_targets(self.selected_job_id)
 
-        logs = self.query_one("#logs", RichLog)
         job = self.state_manager.get_job(job_id) or {}
         status = (job.get("status") or {}) if isinstance(job, dict) else {}
         if status.get("state") == "succeeded":
             run_output_dir_raw = (status or {}).get("run_output_dir")
             final_video_path_raw = (status or {}).get("final_video_path")
             if final_video_path_raw:
-                logs.write(f"[green]Job finished.[/green] Video: {final_video_path_raw}")
+                self._write_log(f"[green]Job finished.[/green] Video: {final_video_path_raw}")
             if run_output_dir_raw:
-                logs.write(f"[green]Output folder:[/green] {run_output_dir_raw}")
+                self._write_log(f"[green]Output folder:[/green] {run_output_dir_raw}")
         else:
             err = status.get("error") or "Unknown error"
-            logs.write(f"[red]Job failed:[/red] {err}")
+            self._write_log(f"[red]Job failed:[/red] {err}")
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "settings":
             await self.action_settings()
             return
 
+        if event.button.id == "copy_logs":
+            self._copy_logs_to_clipboard()
+            return
+
         if event.button.id == "open_video":
             if not self._selected_final_video_path:
-                self.query_one("#logs", RichLog).write("[yellow]No final video available for the selected job.[/yellow]")
+                self._write_log("[yellow]No final video available for the selected job.[/yellow]")
                 return
             try:
                 open_path(self._selected_final_video_path)
             except Exception as e:
-                self.query_one("#logs", RichLog).write(f"[red]Failed to open video:[/red] {e}")
+                self._write_log(f"[red]Failed to open video:[/red] {e}")
             return
 
         if event.button.id == "open_output":
-            logs = self.query_one("#logs", RichLog)
             # Use job-specific output dir if available, otherwise fall back to general output folder
             target_dir = self._selected_run_output_dir
             if not target_dir or not target_dir.exists():
                 target_dir = Path("output").resolve()
                 if not target_dir.exists():
                     target_dir.mkdir(parents=True, exist_ok=True)
-            logs.write(f"[dim]Opening folder:[/dim] {target_dir}")
+            self._write_log(f"[dim]Opening folder:[/dim] {target_dir}")
             try:
                 open_path(target_dir)
-                logs.write("[green]Open command sent successfully[/green]")
+                self._write_log("[green]Open command sent successfully[/green]")
             except Exception as e:
-                logs.write(f"[red]Failed to open output folder:[/red] {e}")
+                self._write_log(f"[red]Failed to open output folder:[/red] {e}")
             return
 
     def _handle_core_event(self, event: object) -> None:
-        logs = self.query_one("#logs", RichLog)
-
         if isinstance(event, LogEvent):
             prefix = f"[{event.level.value}]".upper()
-            logs.write(f"[dim]{event.ts}[/dim] {prefix} {event.message}")
+            self._write_log(f"[dim]{event.ts}[/dim] {prefix} {event.message}")
             return
 
         if isinstance(event, ProgressEvent):
