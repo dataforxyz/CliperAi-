@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class JobStep(str, Enum):
@@ -29,17 +28,17 @@ class VideoRef:
     filename: str
     path: str
     content_type: str = "tutorial"
-    preset: Dict[str, Any] = field(default_factory=dict)
+    preset: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class JobSpec:
     job_id: str
-    video_ids: List[str]
-    steps: List[JobStep]
-    settings: Dict[str, Any] = field(default_factory=dict)
+    video_ids: list[str]
+    steps: list[JobStep]
+    settings: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "job_id": self.job_id,
             "video_ids": list(self.video_ids),
@@ -48,7 +47,7 @@ class JobSpec:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "JobSpec":
+    def from_dict(cls, data: dict[str, Any]) -> JobSpec:
         return cls(
             job_id=str(data["job_id"]),
             video_ids=[str(v) for v in (data.get("video_ids") or [])],
@@ -63,9 +62,9 @@ class JobStatus:
     progress_current: int = 0
     progress_total: int = 0
     label: str = ""
-    started_at: Optional[str] = None
-    finished_at: Optional[str] = None
-    error: Optional[str] = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    error: str | None = None
 
     def mark_started(self) -> None:
         self.state = JobState.RUNNING
@@ -80,7 +79,7 @@ class JobStatus:
         self.error = error
         self.finished_at = datetime.now().isoformat(timespec="seconds")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "state": self.state.value,
             "progress_current": self.progress_current,
@@ -92,7 +91,7 @@ class JobStatus:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "JobStatus":
+    def from_dict(cls, data: dict[str, Any]) -> JobStatus:
         return cls(
             state=JobState(data.get("state") or JobState.PENDING.value),
             progress_current=int(data.get("progress_current") or 0),

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Diagnóstico de Bug de Subtítulos Duplicados
 Ejecutar: python tests/diagnose_subtitle_duplication.py
@@ -12,11 +11,10 @@ Este script:
 5. Reporta hallazgos
 """
 
-import subprocess
 import json
+import subprocess
 import sys
 from pathlib import Path
-from datetime import timedelta
 
 # Setup paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -32,7 +30,6 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.video_exporter import VideoExporter
-from src.subtitle_generator import SubtitleGenerator
 
 
 def print_section(title):
@@ -48,12 +45,9 @@ def check_ffmpeg():
 
     try:
         ffmpeg_result = subprocess.run(
-            ["ffmpeg", "-version"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["ffmpeg", "-version"], capture_output=True, text=True, check=False
         )
-        ffmpeg_version = ffmpeg_result.stdout.split('\n')[0]
+        ffmpeg_version = ffmpeg_result.stdout.split("\n")[0]
         print(f"✓ FFmpeg encontrado: {ffmpeg_version}")
     except FileNotFoundError:
         print("✗ FFmpeg NO encontrado. Instala con:")
@@ -63,12 +57,9 @@ def check_ffmpeg():
 
     try:
         ffprobe_result = subprocess.run(
-            ["ffprobe", "-version"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["ffprobe", "-version"], capture_output=True, text=True, check=False
         )
-        ffprobe_version = ffprobe_result.stdout.split('\n')[0]
+        ffprobe_version = ffprobe_result.stdout.split("\n")[0]
         print(f"✓ FFprobe encontrado: {ffprobe_version}")
     except FileNotFoundError:
         print("✗ FFprobe NO encontrado (viene con FFmpeg)")
@@ -91,15 +82,22 @@ def create_test_video():
 
     cmd = [
         "ffmpeg",
-        "-f", "lavfi",
-        "-i", "color=c=blue:s=1920x1080:d=10",
-        "-f", "lavfi",
-        "-i", "sine=f=1000:d=10",
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-pix_fmt", "yuv420p",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=blue:s=1920x1080:d=10",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=f=1000:d=10",
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-pix_fmt",
+        "yuv420p",
         "-y",
-        str(test_video)
+        str(test_video),
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -108,7 +106,7 @@ def create_test_video():
         print(f"✓ Video de prueba creado: {test_video}")
         return test_video
     else:
-        print(f"✗ Error creando video de prueba:")
+        print("✗ Error creando video de prueba:")
         print(result.stderr)
         return None
 
@@ -189,10 +187,10 @@ def inspect_with_ffprobe(video_path, stage_name):
         print(f"    - Duración: {duration} s")
 
         if codec_type == "subtitle":
-            print(f"    ⚠️ SUBTITLE STREAM DETECTED!")
+            print("    ⚠️ SUBTITLE STREAM DETECTED!")
 
     # Mostrar información general
-    print(f"\nFormato general:")
+    print("\nFormato general:")
     format_info = data.get("format", {})
     print(f"  - Duración: {format_info.get('duration', 'unknown')} s")
     print(f"  - Bitrate: {format_info.get('bit_rate', 'unknown')} bps")
@@ -212,7 +210,7 @@ def export_test_clips(test_video, srt_file, logo_path):
                 "clip_id": "test_001",
                 "start_time": 0,
                 "end_time": 10,
-                "text_preview": "Full test clip"
+                "text_preview": "Full test clip",
             }
         ]
 
@@ -220,7 +218,7 @@ def export_test_clips(test_video, srt_file, logo_path):
         print(f"  - Video: {test_video}")
         print(f"  - Subtítulos: {srt_file}")
         print(f"  - Logo: {logo_path if logo_path else 'NINGUNO (diagnóstico)'}")
-        print(f"  - Aspect ratio: 9:16")
+        print("  - Aspect ratio: 9:16")
 
         exported = exporter.export_clips(
             video_path=str(test_video),
@@ -233,7 +231,7 @@ def export_test_clips(test_video, srt_file, logo_path):
             add_logo=bool(logo_path),
             logo_path=str(logo_path) if logo_path else None,
             logo_position="top-right",
-            logo_scale=0.1
+            logo_scale=0.1,
         )
 
         if exported and exported[0]:
@@ -241,12 +239,13 @@ def export_test_clips(test_video, srt_file, logo_path):
             print(f"\n✓ Clip exportado: {output_video}")
             return output_video
         else:
-            print(f"\n✗ Error exportando clip")
+            print("\n✗ Error exportando clip")
             return None
 
     except Exception as e:
         print(f"\n✗ Excepción durante export: {e}")
         import traceback
+
         traceback.print_exc()
         return None
 
@@ -271,10 +270,10 @@ def inspect_temp_files():
 def main():
     """Ejecutar diagnóstico completo"""
     print("\n")
-    print("╔" + "="*68 + "╗")
+    print("╔" + "=" * 68 + "╗")
     print("║" + "  DIAGNÓSTICO: BUG DE SUBTÍTULOS DUPLICADOS".center(68) + "║")
     print("║" + "  Fecha: 2025-12-07".center(68) + "║")
-    print("╚" + "="*68 + "╝")
+    print("╚" + "=" * 68 + "╝")
 
     # Paso 1: Verificar FFmpeg
     if not check_ffmpeg():
@@ -310,28 +309,28 @@ def main():
     # Resumen y next steps
     print_section("RESUMEN Y PRÓXIMOS PASOS")
 
-    print(f"\n✓ Diagnóstico completado")
-    print(f"\nArchivos generados:")
+    print("\n✓ Diagnóstico completado")
+    print("\nArchivos generados:")
     print(f"  - Test video: {test_video}")
     print(f"  - Test subtítulos: {srt_file}")
     print(f"  - Output final: {output_video}")
 
-    print(f"\n📋 VERIFICACIÓN MANUAL REQUERIDA:")
-    print(f"\n1. Abre el video final en un player:")
+    print("\n📋 VERIFICACIÓN MANUAL REQUERIDA:")
+    print("\n1. Abre el video final en un player:")
     print(f"   open '{output_video}'  # macOS")
     print(f"   vlc '{output_video}'    # Cualquier OS")
 
-    print(f"\n2. Observa los subtítulos:")
-    print(f"   ✓ ¿Aparecen una sola vez? → BUG RESUELTO")
-    print(f"   ✗ ¿Aparecen duplicados? → Continuar investigación")
-    print(f"   ? ¿Offset de tiempo? → Problema de timing")
+    print("\n2. Observa los subtítulos:")
+    print("   ✓ ¿Aparecen una sola vez? → BUG RESUELTO")
+    print("   ✗ ¿Aparecen duplicados? → Continuar investigación")
+    print("   ? ¿Offset de tiempo? → Problema de timing")
 
-    print(f"\n3. Si duplicados, nota:")
-    print(f"   - ¿Aparecen al mismo tiempo o con delay?")
-    print(f"   - ¿Son idénticos o diferentes?")
-    print(f"   - ¿Posición relativa (superpuesto/lado a lado)?")
+    print("\n3. Si duplicados, nota:")
+    print("   - ¿Aparecen al mismo tiempo o con delay?")
+    print("   - ¿Son idénticos o diferentes?")
+    print("   - ¿Posición relativa (superpuesto/lado a lado)?")
 
-    print(f"\n4. Copia esta información en el issue")
+    print("\n4. Copia esta información en el issue")
 
     return True
 

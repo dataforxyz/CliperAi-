@@ -1,29 +1,35 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
-from textual.events import Resize
 from textual.screen import ModalScreen
-from textual.widgets import Button, Checkbox, DataTable, Footer, Header, Input, RichLog, Select, Static
+from textual.widgets import (
+    Button,
+    Checkbox,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    RichLog,
+    Select,
+    Static,
+)
 
 # Minimum terminal size for proper rendering
 MIN_WIDTH = 80
 MIN_HEIGHT = 20
 
-from src.utils import get_state_manager
-from src.utils.open_path import open_path
-from src.utils.video_registry import load_registered_videos
-from src.utils.video_registry import collect_local_video_paths, register_local_videos
+import contextlib
 
-from src.core.events import JobStatusEvent, LogEvent, ProgressEvent, StateEvent
-from src.core.job_runner import JobRunner
-from src.core.models import JobSpec, JobState, JobStep
-from src.config.settings_schema import SUBTITLE_PRESETS, iter_app_setting_groups, list_app_settings_by_group
+from src.config.settings_schema import (
+    SUBTITLE_PRESETS,
+    iter_app_setting_groups,
+    list_app_settings_by_group,
+)
 from src.core.dependency_manager import (
     DependencyProgress,
     DependencyReporter,
@@ -32,10 +38,23 @@ from src.core.dependency_manager import (
     build_required_dependencies,
     ensure_all_required,
 )
+from src.core.events import JobStatusEvent, LogEvent, ProgressEvent, StateEvent
+from src.core.job_runner import JobRunner
+from src.core.models import JobSpec, JobStep
 from src.tui.setup_wizard import SetupWizardModal
+from src.utils import get_state_manager
+from src.utils.open_path import open_path
+from src.utils.video_registry import (
+    collect_local_video_paths,
+    load_registered_videos,
+    register_local_videos,
+)
+
+if TYPE_CHECKING:
+    from textual.events import Resize
 
 
-class AddVideosModal(ModalScreen[Optional[Dict[str, object]]]):
+class AddVideosModal(ModalScreen[Optional[dict[str, object]]]):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel"),
     ]
@@ -66,16 +85,16 @@ class AddVideosModal(ModalScreen[Optional[Dict[str, object]]]):
             self.dismiss({"url": url, "paths": paths, "recursive": recursive})
 
 
-class ProcessShortsModal(ModalScreen[Optional[Dict[str, object]]]):
+class ProcessShortsModal(ModalScreen[Optional[dict[str, object]]]):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel"),
     ]
 
-    def __init__(self, *, title: str, choices: List[str]):
+    def __init__(self, *, title: str, choices: list[str]):
         super().__init__()
         self._title = title
         self._choices = choices
-        self._choice_key_to_path: Dict[str, str] = {}
+        self._choice_key_to_path: dict[str, str] = {}
 
     def on_mount(self) -> None:
         table = self.query_one("#choices", DataTable)
@@ -110,7 +129,9 @@ class ProcessShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                     key = table.get_row_key(table.cursor_row)  # type: ignore[attr-defined]
                 else:
                     try:
-                        key = list(getattr(table, "rows", {}).keys())[int(table.cursor_row)]
+                        key = list(getattr(table, "rows", {}).keys())[
+                            int(table.cursor_row)
+                        ]
                     except Exception:
                         key = None
             value = getattr(key, "value", None) if key is not None else None
@@ -122,7 +143,7 @@ class ProcessShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             self.dismiss({"input_path": input_path})
 
 
-class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
+class CustomShortsModal(ModalScreen[Optional[dict[str, object]]]):
     """Modal for custom shorts processing with options for subtitles, logo, face tracking, and trim."""
 
     _SUBTITLE_PRESET_ORDER = ["default", "bold", "yellow", "tiktok", "small", "tiny"]
@@ -139,36 +160,52 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         Binding("escape", "dismiss", "Cancel"),
     ]
 
-    def __init__(self, *, state_manager, choices: Optional[List[str]] = None):
+    def __init__(self, *, state_manager, choices: list[str] | None = None):
         super().__init__()
         self._state_manager = state_manager
         self._choices = choices or []
-        self._choice_key_to_path: Dict[str, str] = {}
+        self._choice_key_to_path: dict[str, str] = {}
 
     def on_mount(self) -> None:
         # Load current settings as defaults
         settings = self._state_manager.load_settings()
 
         # Populate fields with current settings
-        subtitle_preset_raw = str(settings.get("subtitle_preset", "default") or "default").strip().lower()
-        subtitle_preset = subtitle_preset_raw if subtitle_preset_raw in SUBTITLE_PRESETS else "default"
+        subtitle_preset_raw = (
+            str(settings.get("subtitle_preset", "default") or "default").strip().lower()
+        )
+        subtitle_preset = (
+            subtitle_preset_raw
+            if subtitle_preset_raw in SUBTITLE_PRESETS
+            else "default"
+        )
         subtitle_select = self.query_one("#subtitle_preset", Select)
         subtitle_select.value = subtitle_preset
         self._update_subtitle_preset_desc(subtitle_preset)
 
         self.query_one("#add_logo", Checkbox).value = True
-        self.query_one("#logo_path_input", Input).value = settings.get("logo_path", "assets/logo.png")
-        self.query_one("#logo_position", Input).value = settings.get("logo_position", "top-right")
-        self.query_one("#logo_scale", Input).value = str(settings.get("logo_scale", 0.2))
-        self.query_one("#enable_face_tracking", Checkbox).value = settings.get("enable_face_tracking", False)
-        self.query_one("#face_tracking_strategy", Input).value = settings.get("face_tracking_strategy", "keep_in_frame")
+        self.query_one("#logo_path_input", Input).value = settings.get(
+            "logo_path", "assets/logo.png"
+        )
+        self.query_one("#logo_position", Input).value = settings.get(
+            "logo_position", "top-right"
+        )
+        self.query_one("#logo_scale", Input).value = str(
+            settings.get("logo_scale", 0.2)
+        )
+        self.query_one("#enable_face_tracking", Checkbox).value = settings.get(
+            "enable_face_tracking", False
+        )
+        self.query_one("#face_tracking_strategy", Input).value = settings.get(
+            "face_tracking_strategy", "keep_in_frame"
+        )
 
         self._sync_logo_controls()
 
         # Trim settings - enable if either value is non-zero
         trim_start = int(settings.get("trim_ms_start", 0))
         trim_end = int(settings.get("trim_ms_end", 0))
-        self.query_one("#enable_trim", Checkbox).value = (trim_start > 0 or trim_end > 0)
+        self.query_one("#enable_trim", Checkbox).value = trim_start > 0 or trim_end > 0
         self.query_one("#trim_ms_start", Input).value = str(trim_start)
         self.query_one("#trim_ms_end", Input).value = str(trim_end)
 
@@ -178,23 +215,27 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         else:
             self.query_one("#subtitle_preset", Select).focus()
 
-    def _subtitle_preset_options(self) -> List[tuple[str, str]]:
+    def _subtitle_preset_options(self) -> list[tuple[str, str]]:
         ordered = [p for p in self._SUBTITLE_PRESET_ORDER if p in SUBTITLE_PRESETS]
-        extras = sorted([p for p in SUBTITLE_PRESETS if p not in set(self._SUBTITLE_PRESET_ORDER)])
+        extras = sorted(
+            [p for p in SUBTITLE_PRESETS if p not in set(self._SUBTITLE_PRESET_ORDER)]
+        )
         presets = ordered + extras
-        options: List[tuple[str, str]] = []
+        options: list[tuple[str, str]] = []
         for preset in presets:
-            label = self._SUBTITLE_PRESET_META.get(preset, (preset.replace("_", " ").title(), ""))[0]
+            label = self._SUBTITLE_PRESET_META.get(
+                preset, (preset.replace("_", " ").title(), "")
+            )[0]
             options.append((label, preset))
         return options
 
     def _update_subtitle_preset_desc(self, preset: str) -> None:
-        label, desc = self._SUBTITLE_PRESET_META.get(preset, (preset.replace("_", " ").title(), ""))
+        label, desc = self._SUBTITLE_PRESET_META.get(
+            preset, (preset.replace("_", " ").title(), "")
+        )
         text = f"{label}: {desc}" if desc else label
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#subtitle_preset_desc", Static).update(text)
-        except Exception:
-            pass
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id != "subtitle_preset":
@@ -205,10 +246,8 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
         if preset not in SUBTITLE_PRESETS:
             return
         self._update_subtitle_preset_desc(preset)
-        try:
+        with contextlib.suppress(Exception):
             self._state_manager.set_setting("subtitle_preset", preset)
-        except Exception:
-            pass
 
     def _sync_logo_controls(self) -> None:
         add_logo = bool(self.query_one("#add_logo", Checkbox).value)
@@ -222,7 +261,9 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
 
     def compose(self) -> ComposeResult:
         yield Static("Custom Shorts Processing", id="title")
-        yield Static("Configure options for shorts export (Shift+P)", id="custom_shorts_subtitle")
+        yield Static(
+            "Configure options for shorts export (Shift+P)", id="custom_shorts_subtitle"
+        )
 
         with Vertical(id="custom_shorts_modal"):
             with ScrollableContainer(id="custom_shorts_body"):
@@ -245,8 +286,16 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                     yield Static("Subtitles", classes="group-title")
                     with Vertical(classes="setting-field"):
                         yield Static("Preset style:", classes="field-label")
-                        yield Select(self._subtitle_preset_options(), id="subtitle_preset", allow_blank=False)
-                        yield Static("", id="subtitle_preset_desc", classes="subtitle-preset-desc")
+                        yield Select(
+                            self._subtitle_preset_options(),
+                            id="subtitle_preset",
+                            allow_blank=False,
+                        )
+                        yield Static(
+                            "",
+                            id="subtitle_preset_desc",
+                            classes="subtitle-preset-desc",
+                        )
 
                 # Logo settings
                 with Vertical(classes="settings-group"):
@@ -254,33 +303,54 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                     yield Checkbox("Add logo to video", id="add_logo", value=True)
                     with Vertical(classes="setting-field"):
                         yield Static("Logo file:", classes="field-label")
-                        yield Static("Path to any PNG/JPG image on your computer", classes="help-text")
+                        yield Static(
+                            "Path to any PNG/JPG image on your computer",
+                            classes="help-text",
+                        )
                         yield Input(placeholder="assets/logo.png", id="logo_path_input")
                     with Vertical(classes="setting-field"):
                         yield Static("Logo position:", classes="field-label")
-                        yield Static("Options: top-right, top-left, bottom-right, bottom-left", classes="help-text")
+                        yield Static(
+                            "Options: top-right, top-left, bottom-right, bottom-left",
+                            classes="help-text",
+                        )
                         yield Input(placeholder="top-right", id="logo_position")
                     with Vertical(classes="setting-field"):
                         yield Static("Logo size:", classes="field-label")
-                        yield Static("Scale relative to video (0.1 = 10%, 0.2 = 20%)", classes="help-text")
+                        yield Static(
+                            "Scale relative to video (0.1 = 10%, 0.2 = 20%)",
+                            classes="help-text",
+                        )
                         yield Input(placeholder="0.2", id="logo_scale")
 
                 # Face tracking settings
                 with Vertical(classes="settings-group"):
                     yield Static("Face Tracking (9:16 only)", classes="group-title")
-                    yield Checkbox("Enable face tracking", id="enable_face_tracking", value=False)
+                    yield Checkbox(
+                        "Enable face tracking", id="enable_face_tracking", value=False
+                    )
                     with Vertical(classes="setting-field"):
                         yield Static("Strategy:", classes="field-label")
-                        yield Static("keep_in_frame (less jittery) or centered (always center face)", classes="help-text")
-                        yield Input(placeholder="keep_in_frame", id="face_tracking_strategy")
+                        yield Static(
+                            "keep_in_frame (less jittery) or centered (always center face)",
+                            classes="help-text",
+                        )
+                        yield Input(
+                            placeholder="keep_in_frame", id="face_tracking_strategy"
+                        )
 
                 # Trim settings
                 with Vertical(classes="settings-group"):
                     yield Static("Speech Boundary Trimming", classes="group-title")
-                    yield Static("Trim excess silence using speech detection", classes="group-desc")
+                    yield Static(
+                        "Trim excess silence using speech detection",
+                        classes="group-desc",
+                    )
                     yield Checkbox("Enable trimming", id="enable_trim", value=True)
                     with Vertical(classes="setting-field"):
-                        yield Static("Max silence at start (ms):", classes="field-label")
+                        yield Static(
+                            "Max silence at start (ms):", classes="field-label"
+                        )
                         yield Input(placeholder="1000", id="trim_ms_start")
                     with Vertical(classes="setting-field"):
                         yield Static("Max silence at end (ms):", classes="field-label")
@@ -290,7 +360,7 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                 yield Button("Process", id="process", variant="primary")
                 yield Button("Cancel", id="cancel")
 
-    def _get_selected_row_key_value(self, table: DataTable) -> Optional[str]:
+    def _get_selected_row_key_value(self, table: DataTable) -> str | None:
         key = None
         if table.cursor_row is not None:
             if hasattr(table, "get_row_key"):
@@ -310,7 +380,7 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
 
         if event.button.id == "process":
             # Gather all settings
-            result: Dict[str, object] = {}
+            result: dict[str, object] = {}
 
             # Get source selection
             if self._choices:
@@ -321,7 +391,11 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
 
             # Subtitle settings
             subtitle_value = self.query_one("#subtitle_preset", Select).value
-            subtitle_preset = str(subtitle_value).strip().lower() if subtitle_value is not None else ""
+            subtitle_preset = (
+                str(subtitle_value).strip().lower()
+                if subtitle_value is not None
+                else ""
+            )
             if subtitle_preset and subtitle_preset in SUBTITLE_PRESETS:
                 result["subtitle_style"] = subtitle_preset
 
@@ -332,19 +406,32 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
                 logo_path = self.query_one("#logo_path_input", Input).value.strip()
                 if logo_path:
                     result["logo_path"] = logo_path
-            logo_position = self.query_one("#logo_position", Input).value.strip().lower()
-            if logo_position in {"top-right", "top-left", "bottom-right", "bottom-left"}:
+            logo_position = (
+                self.query_one("#logo_position", Input).value.strip().lower()
+            )
+            if logo_position in {
+                "top-right",
+                "top-left",
+                "bottom-right",
+                "bottom-left",
+            }:
                 result["logo_position"] = logo_position
             try:
-                logo_scale = float(self.query_one("#logo_scale", Input).value.strip() or "0.2")
+                logo_scale = float(
+                    self.query_one("#logo_scale", Input).value.strip() or "0.2"
+                )
                 if 0.01 <= logo_scale <= 1.0:
                     result["logo_scale"] = logo_scale
             except ValueError:
                 pass
 
             # Face tracking settings
-            result["enable_face_tracking"] = self.query_one("#enable_face_tracking", Checkbox).value
-            face_strategy = self.query_one("#face_tracking_strategy", Input).value.strip().lower()
+            result["enable_face_tracking"] = self.query_one(
+                "#enable_face_tracking", Checkbox
+            ).value
+            face_strategy = (
+                self.query_one("#face_tracking_strategy", Input).value.strip().lower()
+            )
             if face_strategy in {"keep_in_frame", "centered"}:
                 result["face_tracking_strategy"] = face_strategy
 
@@ -352,13 +439,17 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             enable_trim = self.query_one("#enable_trim", Checkbox).value
             if enable_trim:
                 try:
-                    trim_start = int(self.query_one("#trim_ms_start", Input).value.strip() or "0")
+                    trim_start = int(
+                        self.query_one("#trim_ms_start", Input).value.strip() or "0"
+                    )
                     result["trim_ms_start"] = max(0, trim_start)
                 except ValueError:
                     result["trim_ms_start"] = 0
 
                 try:
-                    trim_end = int(self.query_one("#trim_ms_end", Input).value.strip() or "0")
+                    trim_end = int(
+                        self.query_one("#trim_ms_end", Input).value.strip() or "0"
+                    )
                     result["trim_ms_end"] = max(0, trim_end)
                 except ValueError:
                     result["trim_ms_end"] = 0
@@ -369,7 +460,7 @@ class CustomShortsModal(ModalScreen[Optional[Dict[str, object]]]):
             self.dismiss(result)
 
 
-class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
+class SettingsModal(ModalScreen[Optional[dict[str, object]]]):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel"),
     ]
@@ -377,12 +468,16 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
     def __init__(self, *, state_manager):
         super().__init__()
         self._state_manager = state_manager
-        self._errors: Dict[str, str] = {}
-        self._validated: Dict[str, object] = {}
+        self._errors: dict[str, str] = {}
+        self._validated: dict[str, object] = {}
 
     def on_mount(self) -> None:
         settings_by_group = list_app_settings_by_group()
-        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        all_settings = [
+            s
+            for group in iter_app_setting_groups()
+            for s in settings_by_group.get(group.key, [])
+        ]
         for setting in all_settings:
             current = self._state_manager.get_setting(setting.key, setting.default)
             input_widget = self.query_one(f"#setting_{setting.key}", Input)
@@ -403,27 +498,39 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
         yield Static("Settings", id="title")
         yield Static("Changes auto-save. Press Esc to close.", id="settings_subtitle")
 
-        with Vertical(id="settings_modal"):
-            with ScrollableContainer(id="settings_body"):
-                settings_by_group = list_app_settings_by_group()
-                for group in iter_app_setting_groups():
-                    group_settings = settings_by_group.get(group.key, [])
-                    if not group_settings:
-                        continue
+        with Vertical(id="settings_modal"), ScrollableContainer(id="settings_body"):
+            settings_by_group = list_app_settings_by_group()
+            for group in iter_app_setting_groups():
+                group_settings = settings_by_group.get(group.key, [])
+                if not group_settings:
+                    continue
 
-                    with Vertical(classes="settings-group", id=f"settings_group_{group.key}"):
-                        yield Static(group.title, classes="group-title")
-                        if group.description:
-                            yield Static(group.description, classes="group-desc")
+                with Vertical(
+                    classes="settings-group", id=f"settings_group_{group.key}"
+                ):
+                    yield Static(group.title, classes="group-title")
+                    if group.description:
+                        yield Static(group.description, classes="group-desc")
 
-                        for setting in group_settings:
-                            with Vertical(classes="setting-field", id=f"setting_field_{setting.key}"):
-                                yield Static(setting.label, classes="field-label")
-                                if setting.help_text:
-                                    yield Static(setting.help_text, classes="help-text")
-                                yield Static(f"Default: {setting.default}", classes="default-hint")
-                                yield Input(placeholder=setting.placeholder, id=f"setting_{setting.key}")
-                                yield Static("", id=f"setting_{setting.key}_error", classes="error-text")
+                    for setting in group_settings:
+                        with Vertical(
+                            classes="setting-field", id=f"setting_field_{setting.key}"
+                        ):
+                            yield Static(setting.label, classes="field-label")
+                            if setting.help_text:
+                                yield Static(setting.help_text, classes="help-text")
+                            yield Static(
+                                f"Default: {setting.default}", classes="default-hint"
+                            )
+                            yield Input(
+                                placeholder=setting.placeholder,
+                                id=f"setting_{setting.key}",
+                            )
+                            yield Static(
+                                "",
+                                id=f"setting_{setting.key}_error",
+                                classes="error-text",
+                            )
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id and event.input.id.startswith("setting_"):
@@ -434,7 +541,11 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
         self._validated = {}
 
         settings_by_group = list_app_settings_by_group()
-        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        all_settings = [
+            s
+            for group in iter_app_setting_groups()
+            for s in settings_by_group.get(group.key, [])
+        ]
         for setting in all_settings:
             raw_value = self.query_one(f"#setting_{setting.key}", Input).value
             try:
@@ -455,7 +566,11 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
 
     def _render_validation_state(self) -> None:
         settings_by_group = list_app_settings_by_group()
-        all_settings = [s for group in iter_app_setting_groups() for s in settings_by_group.get(group.key, [])]
+        all_settings = [
+            s
+            for group in iter_app_setting_groups()
+            for s in settings_by_group.get(group.key, [])
+        ]
         for setting in all_settings:
             error_text = self._errors.get(setting.key, "")
             error_widget = self.query_one(f"#setting_{setting.key}_error", Static)
@@ -469,16 +584,16 @@ class SettingsModal(ModalScreen[Optional[Dict[str, object]]]):
                 input_widget.remove_class("invalid")
 
 
-class DependencyModal(ModalScreen[Optional[Dict[str, object]]]):
+class DependencyModal(ModalScreen[Optional[dict[str, object]]]):
     BINDINGS = [
         Binding("escape", "dismiss", "Cancel"),
     ]
 
-    def __init__(self, *, specs: List[DependencySpec], auto_install: bool = False):
+    def __init__(self, *, specs: list[DependencySpec], auto_install: bool = False):
         super().__init__()
         self._specs = specs
         self._auto_install = auto_install
-        self._status: Dict[str, str] = {}  # key -> status text
+        self._status: dict[str, str] = {}  # key -> status text
         self._is_downloading = False
         self._cancelled = False
 
@@ -519,17 +634,15 @@ class DependencyModal(ModalScreen[Optional[Dict[str, object]]]):
             for row_key in list(table.rows.keys()):
                 if getattr(row_key, "value", str(row_key)) == key:
                     row_idx = table.get_row_index(row_key)
-                    spec_desc = next((s.description for s in self._specs if s.key == key), key)
+                    next((s.description for s in self._specs if s.key == key), key)
                     table.update_cell_at((row_idx, 1), status)
                     break
         except Exception:
             pass
 
     def _update_progress_text(self, text: str) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#dep_progress_text", Static).update(text)
-        except Exception:
-            pass
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close":
@@ -547,10 +660,8 @@ class DependencyModal(ModalScreen[Optional[Dict[str, object]]]):
         self._is_downloading = True
         self._cancelled = False
 
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#install", Button).disabled = True
-        except Exception:
-            pass
 
         # Check current status first
         for spec in self._specs:
@@ -576,11 +687,15 @@ class DependencyModal(ModalScreen[Optional[Dict[str, object]]]):
                     elif event.status == DependencyStatus.ERROR:
                         status_text = f"[red]Error: {event.message}[/red]"
 
-                    call_from_thread(reporter_self._modal._update_status, event.key, status_text)
+                    call_from_thread(
+                        reporter_self._modal._update_status, event.key, status_text
+                    )
                     progress_text = f"[{event.index}/{event.total}] {event.description}"
                     if event.message and event.status == DependencyStatus.DOWNLOADING:
                         progress_text += f" - {event.message}"
-                    call_from_thread(reporter_self._modal._update_progress_text, progress_text)
+                    call_from_thread(
+                        reporter_self._modal._update_progress_text, progress_text
+                    )
 
                 def is_cancelled(reporter_self) -> bool:
                     return reporter_self._modal._cancelled
@@ -590,10 +705,8 @@ class DependencyModal(ModalScreen[Optional[Dict[str, object]]]):
 
             def finish():
                 self._is_downloading = False
-                try:
+                with contextlib.suppress(Exception):
                     self.query_one("#install", Button).disabled = False
-                except Exception:
-                    pass
 
                 if result.canceled:
                     self._update_progress_text("[yellow]Cancelled[/yellow]")
@@ -608,7 +721,7 @@ class DependencyModal(ModalScreen[Optional[Dict[str, object]]]):
         self.app.run_worker(run_ensure, thread=True)
 
 
-def check_missing_dependencies(specs: List[DependencySpec]) -> List[DependencySpec]:
+def check_missing_dependencies(specs: list[DependencySpec]) -> list[DependencySpec]:
     """Return list of specs that are not yet installed."""
     missing = []
     for spec in specs:
@@ -658,7 +771,7 @@ class QuitConfirmationModal(ModalScreen[bool]):
         self.dismiss(False)
 
 
-class ResetStagesModal(ModalScreen[Optional[Dict[str, object]]]):
+class ResetStagesModal(ModalScreen[Optional[dict[str, object]]]):
     """Modal para seleccionar qué etapas resetear de un video."""
 
     BINDINGS = [
@@ -666,13 +779,16 @@ class ResetStagesModal(ModalScreen[Optional[Dict[str, object]]]):
     ]
 
     STAGE_INFO = {
-        "transcription": ("Transcription", "Reset transcript (will also reset clips, export, shorts)"),
+        "transcription": (
+            "Transcription",
+            "Reset transcript (will also reset clips, export, shorts)",
+        ),
         "clips": ("Clips", "Reset generated clips (will also reset export)"),
         "export": ("Export", "Reset exported clip files"),
         "shorts": ("Shorts", "Reset exported shorts"),
     }
 
-    def __init__(self, *, video_ids: List[str], state_manager):
+    def __init__(self, *, video_ids: list[str], state_manager):
         super().__init__()
         self._video_ids = video_ids
         self._state_manager = state_manager
@@ -688,7 +804,9 @@ class ResetStagesModal(ModalScreen[Optional[Dict[str, object]]]):
         yield Static("Select stages to reset:", classes="label")
 
         for stage_key, (label, description) in self.STAGE_INFO.items():
-            yield Checkbox(f"{label} - {description}", id=f"stage_{stage_key}", value=False)
+            yield Checkbox(
+                f"{label} - {description}", id=f"stage_{stage_key}", value=False
+            )
 
         with Horizontal(classes="buttons"):
             yield Button("Reset Selected", id="reset", variant="warning")
@@ -700,7 +818,7 @@ class ResetStagesModal(ModalScreen[Optional[Dict[str, object]]]):
             return
         if event.button.id == "reset":
             stages = []
-            for stage_key in self.STAGE_INFO.keys():
+            for stage_key in self.STAGE_INFO:
                 checkbox = self.query_one(f"#stage_{stage_key}", Checkbox)
                 if checkbox.value:
                     stages.append(stage_key)
@@ -853,28 +971,28 @@ class CliperTUI(App):
         color: $text 80%;
     }
 
-	    #dep_buttons {
-	        margin: 0;
-	        padding: 1 2;
-	        border-top: solid $panel;
-	        background: $surface;
-	    }
+    #dep_buttons {
+        margin: 0;
+        padding: 1 2;
+        border-top: solid $panel;
+        background: $surface;
+    }
 
-	    /* Custom shorts modal styles */
-	    CustomShortsModal {
-	        padding: 0;
-	        align: left top;
-	    }
+    /* Custom shorts modal styles */
+    CustomShortsModal {
+        padding: 0;
+        align: left top;
+    }
 
-	    #custom_shorts_modal {
-	        width: 100%;
-	        max-width: 100%;
-	        height: 1fr;
-	        min-height: 0;
-	        margin: 0;
-	        border: heavy $panel;
-	        background: $surface;
-	    }
+    #custom_shorts_modal {
+        width: 100%;
+        max-width: 100%;
+        height: 1fr;
+        min-height: 0;
+        margin: 0;
+        border: heavy $panel;
+        background: $surface;
+    }
 
     #custom_shorts_subtitle {
         margin: 0 2 1 2;
@@ -915,25 +1033,25 @@ class CliperTUI(App):
         Binding("q", "quit", "Quit"),
     ]
 
-    def __init__(self, *, cli_output_dir: Optional[str] = None):
+    def __init__(self, *, cli_output_dir: str | None = None):
         super().__init__()
         self.state_manager = get_state_manager()
         self.cli_output_dir = cli_output_dir
-        self.videos: List[Dict[str, str]] = []
-        self.selected_video_id: Optional[str] = None
-        self.selected_video_ids: Set[str] = set()
-        self.selected_job_id: Optional[str] = None
+        self.videos: list[dict[str, str]] = []
+        self.selected_video_id: str | None = None
+        self.selected_video_ids: set[str] = set()
+        self.selected_job_id: str | None = None
 
-        self._running_job_id: Optional[str] = None
-        self._selected_run_output_dir: Optional[Path] = None
-        self._selected_final_video_path: Optional[Path] = None
+        self._running_job_id: str | None = None
+        self._selected_run_output_dir: Path | None = None
+        self._selected_final_video_path: Path | None = None
         self._startup_dep_check_done = False
         self._startup_wizard_check_done = False
-        self._log_buffer: List[str] = []
+        self._log_buffer: list[str] = []
 
-    def _load_selected_job_open_targets(self, job_id: Optional[str]) -> None:
-        run_output_dir: Optional[Path] = None
-        final_video_path: Optional[Path] = None
+    def _load_selected_job_open_targets(self, job_id: str | None) -> None:
+        run_output_dir: Path | None = None
+        final_video_path: Path | None = None
         succeeded = False
 
         if job_id:
@@ -943,9 +1061,16 @@ class CliperTUI(App):
             run_output_dir_raw = status.get("run_output_dir")
             final_video_path_raw = status.get("final_video_path")
             run_output_dir = Path(run_output_dir_raw) if run_output_dir_raw else None
-            final_video_path = Path(final_video_path_raw) if final_video_path_raw else None
+            final_video_path = (
+                Path(final_video_path_raw) if final_video_path_raw else None
+            )
 
-            if succeeded and run_output_dir and run_output_dir.exists() and (not final_video_path or not final_video_path.exists()):
+            if (
+                succeeded
+                and run_output_dir
+                and run_output_dir.exists()
+                and (not final_video_path or not final_video_path.exists())
+            ):
                 try:
                     mp4s = list(run_output_dir.rglob("*.mp4"))
                     if mp4s:
@@ -959,7 +1084,11 @@ class CliperTUI(App):
         try:
             open_video_btn = self.query_one("#open_video", Button)
             open_output_btn = self.query_one("#open_output", Button)
-            open_video_btn.disabled = not (succeeded and self._selected_final_video_path and self._selected_final_video_path.exists())
+            open_video_btn.disabled = not (
+                succeeded
+                and self._selected_final_video_path
+                and self._selected_final_video_path.exists()
+            )
             # Output folder button is always enabled - falls back to general output/ folder
             open_output_btn.disabled = False
         except Exception:
@@ -969,12 +1098,13 @@ class CliperTUI(App):
         """Write a message to the log widget and buffer for copying."""
         # Strip Rich markup for plain text buffer
         import re
-        plain_message = re.sub(r'\[/?[^\]]+\]', '', message)
+
+        plain_message = re.sub(r"\[/?[^\]]+\]", "", message)
         self._log_buffer.append(plain_message)
 
         # Trim buffer if it exceeds max size
         if len(self._log_buffer) > self.MAX_LOG_BUFFER:
-            self._log_buffer = self._log_buffer[-self.MAX_LOG_BUFFER:]
+            self._log_buffer = self._log_buffer[-self.MAX_LOG_BUFFER :]
 
         try:
             logs = self.query_one("#logs", RichLog)
@@ -991,13 +1121,18 @@ class CliperTUI(App):
         log_text = "\n".join(self._log_buffer)
         try:
             self.copy_to_clipboard(log_text)
-            self._write_log(f"[green]Copied {len(self._log_buffer)} log entries to clipboard.[/green]")
+            self._write_log(
+                f"[green]Copied {len(self._log_buffer)} log entries to clipboard.[/green]"
+            )
         except Exception as e:
             self._write_log(f"[red]Failed to copy logs:[/red] {e}")
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Static(f"Terminal too small! Resize to at least {MIN_WIDTH}x{MIN_HEIGHT}", id="size-warning")
+        yield Static(
+            f"Terminal too small! Resize to at least {MIN_WIDTH}x{MIN_HEIGHT}",
+            id="size-warning",
+        )
         with Horizontal(id="main"):
             yield DataTable(id="library")
             with Vertical(id="right"):
@@ -1083,7 +1218,9 @@ class CliperTUI(App):
 
             def show_result():
                 if missing:
-                    self._write_log(f"[yellow]Missing {len(missing)} dependencies. Press 'd' to install.[/yellow]")
+                    self._write_log(
+                        f"[yellow]Missing {len(missing)} dependencies. Press 'd' to install.[/yellow]"
+                    )
                     # Auto-show modal with missing dependencies
                     self.push_screen(
                         DependencyModal(specs=specs, auto_install=False),
@@ -1104,7 +1241,7 @@ class CliperTUI(App):
             callback=self._on_dependency_modal_dismissed,
         )
 
-    def _on_dependency_modal_dismissed(self, result: Optional[Dict[str, object]]) -> None:
+    def _on_dependency_modal_dismissed(self, result: dict[str, object] | None) -> None:
         if not result:
             return
         if result.get("cancelled"):
@@ -1126,7 +1263,7 @@ class CliperTUI(App):
             callback=self._on_setup_wizard_dismissed,
         )
 
-    def _on_setup_wizard_dismissed(self, result: Optional[Dict[str, object]]) -> None:
+    def _on_setup_wizard_dismissed(self, result: dict[str, object] | None) -> None:
         if not result:
             self._write_log("[yellow]Setup wizard cancelled.[/yellow]")
             # Still mark as completed so it doesn't show again
@@ -1148,7 +1285,7 @@ class CliperTUI(App):
         table.clear()
 
         # Get video IDs currently being processed
-        processing_video_ids: Set[str] = set()
+        processing_video_ids: set[str] = set()
         if self._running_job_id:
             job = self.state_manager.get_job(self._running_job_id) or {}
             spec = job.get("spec") or {}
@@ -1168,7 +1305,11 @@ class CliperTUI(App):
 
             # Check if this video is currently being processed
             if video["video_id"] in processing_video_ids:
-                status = "Processing..." if not parts else " | ".join(parts) + " | Processing..."
+                status = (
+                    "Processing..."
+                    if not parts
+                    else " | ".join(parts) + " | Processing..."
+                )
             else:
                 status = " | ".join(parts) if parts else "Ready"
             marker = "✓" if video["video_id"] in self.selected_video_ids else ""
@@ -1182,7 +1323,7 @@ class CliperTUI(App):
         table.clear()
         jobs = self.state_manager.list_jobs()
 
-        def format_progress(st: Dict) -> str:
+        def format_progress(st: dict) -> str:
             cur = int(st.get("progress_current") or 0)
             total = int(st.get("progress_total") or 0)
             if total <= 0:
@@ -1214,7 +1355,9 @@ class CliperTUI(App):
                 video_id, ["transcription", "clips", "export", "shorts"]
             )
 
-        self._write_log(f"[green]Reset {count} video{'s' if count > 1 else ''} completely.[/green]")
+        self._write_log(
+            f"[green]Reset {count} video{'s' if count > 1 else ''} completely.[/green]"
+        )
         self.refresh_library()
 
     async def action_partial_reset(self) -> None:
@@ -1229,13 +1372,13 @@ class CliperTUI(App):
             callback=self._on_reset_stages_dismissed,
         )
 
-    def _on_reset_stages_dismissed(self, result: Optional[Dict[str, object]]) -> None:
+    def _on_reset_stages_dismissed(self, result: dict[str, object] | None) -> None:
         """Handle result from ResetStagesModal."""
         if not result:
             return
 
-        stages: List[str] = list(result.get("stages") or [])  # type: ignore[arg-type]
-        video_ids: List[str] = list(result.get("video_ids") or [])  # type: ignore[arg-type]
+        stages: list[str] = list(result.get("stages") or [])  # type: ignore[arg-type]
+        video_ids: list[str] = list(result.get("video_ids") or [])  # type: ignore[arg-type]
 
         if not stages or not video_ids:
             return
@@ -1284,7 +1427,7 @@ class CliperTUI(App):
         # raise `NoActiveWorker` under `push_screen_wait(...)` in some environments.
         await self.push_screen(AddVideosModal(), callback=self._on_add_videos_dismissed)
 
-    def _on_add_videos_dismissed(self, result: Optional[Dict[str, object]]) -> None:
+    def _on_add_videos_dismissed(self, result: dict[str, object] | None) -> None:
         if not result:
             return
 
@@ -1296,8 +1439,11 @@ class CliperTUI(App):
             self._write_log(f"[cyan]Downloading:[/cyan] {url}")
 
             def download_and_register() -> None:
+                from src.core.dependency_manager import (
+                    DependencyReporter,
+                    DependencyStatus,
+                )
                 from src.downloader import YoutubeDownloader
-                from src.core.dependency_manager import DependencyProgress, DependencyReporter, DependencyStatus
 
                 write_log = self._write_log
                 call_from_thread = self.call_from_thread
@@ -1314,44 +1460,68 @@ class CliperTUI(App):
                             if event.message == self._last_line:
                                 return
                             self._last_line = event.message
-                            self._call_from_thread(write_log, f"[dim]{event.message}[/dim]")
+                            self._call_from_thread(
+                                write_log, f"[dim]{event.message}[/dim]"
+                            )
                         elif event.status == DependencyStatus.ERROR:
-                            self._call_from_thread(write_log, f"[red]{event.description} failed:[/red] {event.message}")
+                            self._call_from_thread(
+                                write_log,
+                                f"[red]{event.description} failed:[/red] {event.message}",
+                            )
                         elif event.status == DependencyStatus.DONE:
                             if event.message:
-                                self._call_from_thread(write_log, f"[green]Saved:[/green] {event.message}")
+                                self._call_from_thread(
+                                    write_log, f"[green]Saved:[/green] {event.message}"
+                                )
 
                     def is_cancelled(self) -> bool:
                         return False
 
-                downloader = YoutubeDownloader(download_dir="downloads", reporter=_TUIDownloadReporter(call_from_thread))
+                downloader = YoutubeDownloader(
+                    download_dir="downloads",
+                    reporter=_TUIDownloadReporter(call_from_thread),
+                )
                 downloaded = downloader.download(url)
                 if not downloaded:
-                    self.call_from_thread(write_log, f"[red]Download failed:[/red] {url}")
+                    self.call_from_thread(
+                        write_log, f"[red]Download failed:[/red] {url}"
+                    )
                     return
 
                 video_path = Path(downloaded)
                 register_local_videos(self.state_manager, [video_path])
-                self.call_from_thread(write_log, f"[green]Downloaded:[/green] {video_path.name}")
+                self.call_from_thread(
+                    write_log, f"[green]Downloaded:[/green] {video_path.name}"
+                )
                 self.call_from_thread(self.refresh_all)
 
             self.run_worker(download_and_register, thread=True)
 
         if paths_raw:
+
             def collect_and_register_local() -> None:
                 try:
-                    paths, errors = collect_local_video_paths(paths_raw, recursive=recursive)
+                    paths, errors = collect_local_video_paths(
+                        paths_raw, recursive=recursive
+                    )
                     registered_count = 0
                     if paths:
                         registered = register_local_videos(self.state_manager, paths)
                         registered_count = len(registered)
-                    self.call_from_thread(self._on_local_videos_registered, errors, registered_count)
+                    self.call_from_thread(
+                        self._on_local_videos_registered, errors, registered_count
+                    )
                 except Exception as e:
-                    self.call_from_thread(self._write_log, f"[red]Failed to register local videos:[/red] {e}")
+                    self.call_from_thread(
+                        self._write_log,
+                        f"[red]Failed to register local videos:[/red] {e}",
+                    )
 
             self.run_worker(collect_and_register_local, thread=True)
 
-    def _on_local_videos_registered(self, errors: List[str], registered_count: int) -> None:
+    def _on_local_videos_registered(
+        self, errors: list[str], registered_count: int
+    ) -> None:
         for err in errors:
             self._write_log(f"[yellow]{err}[/yellow]")
         if registered_count <= 0:
@@ -1360,22 +1530,36 @@ class CliperTUI(App):
         self._write_log(f"[green]Registered {registered_count} video(s).[/green]")
         self.refresh_all()
 
-    def _selected_or_current_video_ids(self) -> List[str]:
+    def _selected_or_current_video_ids(self) -> list[str]:
         if self.selected_video_ids:
             return sorted(self.selected_video_ids)
         if self.selected_video_id:
             return [self.selected_video_id]
         return []
 
-    def _enqueue_job(self, steps: List[JobStep], *, settings: Optional[Dict[str, object]] = None) -> None:
+    def _enqueue_job(
+        self, steps: list[JobStep], *, settings: dict[str, object] | None = None
+    ) -> None:
         video_ids = self._selected_or_current_video_ids()
         if not video_ids:
             self._write_log("[yellow]No videos selected.[/yellow]")
             return
 
         job_id = self.state_manager.create_job_id()
-        spec = JobSpec(job_id=job_id, video_ids=video_ids, steps=steps, settings=dict(settings or {}))
-        self.state_manager.enqueue_job(spec.to_dict(), initial_status={"state": "pending", "progress_current": 0, "progress_total": len(video_ids) * len(steps)})
+        spec = JobSpec(
+            job_id=job_id,
+            video_ids=video_ids,
+            steps=steps,
+            settings=dict(settings or {}),
+        )
+        self.state_manager.enqueue_job(
+            spec.to_dict(),
+            initial_status={
+                "state": "pending",
+                "progress_current": 0,
+                "progress_total": len(video_ids) * len(steps),
+            },
+        )
         self.refresh_jobs()
         self._maybe_start_next_job()
 
@@ -1389,9 +1573,12 @@ class CliperTUI(App):
         self._enqueue_job([JobStep.EXPORT_CLIPS])
 
     async def action_settings(self) -> None:
-        await self.push_screen(SettingsModal(state_manager=self.state_manager), callback=self._on_settings_dismissed)
+        await self.push_screen(
+            SettingsModal(state_manager=self.state_manager),
+            callback=self._on_settings_dismissed,
+        )
 
-    def _on_settings_dismissed(self, result: Optional[Dict[str, object]]) -> None:
+    def _on_settings_dismissed(self, result: dict[str, object] | None) -> None:
         if not result:
             return
         changed = ", ".join(sorted(result.keys()))
@@ -1417,20 +1604,26 @@ class CliperTUI(App):
             return
 
         await self.push_screen(
-            ProcessShortsModal(title="Process Shorts", choices=[str(p) for p in exported_clips]),
+            ProcessShortsModal(
+                title="Process Shorts", choices=[str(p) for p in exported_clips]
+            ),
             callback=lambda result: self._on_process_shorts_dismissed(video_id, result),
         )
 
-    def _on_process_shorts_dismissed(self, video_id: str, result: Optional[Dict[str, object]]) -> None:
+    def _on_process_shorts_dismissed(
+        self, video_id: str, result: dict[str, object] | None
+    ) -> None:
         if result is None:
             return
 
         input_path = result.get("input_path")
-        settings: Dict[str, object] = {}
+        settings: dict[str, object] = {}
         if input_path:
             settings = {"shorts": {"input_paths": {video_id: str(input_path)}}}
 
-        self._enqueue_job([JobStep.TRANSCRIBE, JobStep.EXPORT_SHORTS], settings=settings)
+        self._enqueue_job(
+            [JobStep.TRANSCRIBE, JobStep.EXPORT_SHORTS], settings=settings
+        )
 
     async def action_custom_shorts(self) -> None:
         """Open the custom shorts modal (Shift+P) for configuring shorts export options."""
@@ -1440,7 +1633,7 @@ class CliperTUI(App):
             return
 
         # For single video with exported clips, show source selection
-        choices: List[str] = []
+        choices: list[str] = []
         video_id = video_ids[0] if len(video_ids) == 1 else None
         if video_id:
             state = self.state_manager.get_video_state(video_id) or {}
@@ -1452,12 +1645,14 @@ class CliperTUI(App):
             callback=lambda result: self._on_custom_shorts_dismissed(video_ids, result),
         )
 
-    def _on_custom_shorts_dismissed(self, video_ids: List[str], result: Optional[Dict[str, object]]) -> None:
+    def _on_custom_shorts_dismissed(
+        self, video_ids: list[str], result: dict[str, object] | None
+    ) -> None:
         if result is None:
             return
 
         # Build settings dict from modal result
-        shorts_settings: Dict[str, object] = {}
+        shorts_settings: dict[str, object] = {}
 
         # Input path (if a specific clip was selected)
         if result.get("input_path") and len(video_ids) == 1:
@@ -1477,8 +1672,10 @@ class CliperTUI(App):
             shorts_settings["logo_scale"] = result["logo_scale"]
 
         # Face tracking settings - passed at top-level for job_runner
-        export_settings: Dict[str, object] = {}
-        export_settings["enable_face_tracking"] = result.get("enable_face_tracking", False)
+        export_settings: dict[str, object] = {}
+        export_settings["enable_face_tracking"] = result.get(
+            "enable_face_tracking", False
+        )
         if result.get("face_tracking_strategy"):
             export_settings["face_tracking_strategy"] = result["face_tracking_strategy"]
 
@@ -1488,11 +1685,13 @@ class CliperTUI(App):
         shorts_settings["trim_ms_start"] = trim_start
         shorts_settings["trim_ms_end"] = trim_end
 
-        settings: Dict[str, object] = {"shorts": shorts_settings}
+        settings: dict[str, object] = {"shorts": shorts_settings}
         if export_settings:
             settings["export"] = export_settings
 
-        self._enqueue_job([JobStep.TRANSCRIBE, JobStep.EXPORT_SHORTS], settings=settings)
+        self._enqueue_job(
+            [JobStep.TRANSCRIBE, JobStep.EXPORT_SHORTS], settings=settings
+        )
         self._write_log(
             f"[cyan]Custom shorts job enqueued[/cyan] - Logo: {shorts_settings.get('add_logo')}, "
             f"Face tracking: {export_settings.get('enable_face_tracking')}, "
@@ -1513,7 +1712,9 @@ class CliperTUI(App):
             spec = JobSpec.from_dict(spec_dict)
         except Exception as e:
             self._write_log(f"[red]Invalid job spec {next_job_id}: {e}[/red]")
-            self.state_manager.update_job_status(next_job_id, {"state": "failed", "error": str(e)})
+            self.state_manager.update_job_status(
+                next_job_id, {"state": "failed", "error": str(e)}
+            )
             self.refresh_jobs()
             return
 
@@ -1526,9 +1727,13 @@ class CliperTUI(App):
             self.call_from_thread(self._handle_core_event, event)
 
         def run() -> None:
-            runner = JobRunner(self.state_manager, emit=emit, cli_output_dir=self.cli_output_dir)
+            runner = JobRunner(
+                self.state_manager, emit=emit, cli_output_dir=self.cli_output_dir
+            )
             status = runner.run_job(spec)
-            self.call_from_thread(self.state_manager.update_job_status, spec.job_id, status.to_dict())
+            self.call_from_thread(
+                self.state_manager.update_job_status, spec.job_id, status.to_dict()
+            )
             self.call_from_thread(self._on_job_finished, spec.job_id)
 
         self.run_worker(run, thread=True)
@@ -1547,7 +1752,9 @@ class CliperTUI(App):
             run_output_dir_raw = (status or {}).get("run_output_dir")
             final_video_path_raw = (status or {}).get("final_video_path")
             if final_video_path_raw:
-                self._write_log(f"[green]Job finished.[/green] Video: {final_video_path_raw}")
+                self._write_log(
+                    f"[green]Job finished.[/green] Video: {final_video_path_raw}"
+                )
             if run_output_dir_raw:
                 self._write_log(f"[green]Output folder:[/green] {run_output_dir_raw}")
         else:
@@ -1565,7 +1772,9 @@ class CliperTUI(App):
 
         if event.button.id == "open_video":
             if not self._selected_final_video_path:
-                self._write_log("[yellow]No final video available for the selected job.[/yellow]")
+                self._write_log(
+                    "[yellow]No final video available for the selected job.[/yellow]"
+                )
                 return
             try:
                 open_path(self._selected_final_video_path)
@@ -1597,13 +1806,17 @@ class CliperTUI(App):
         if isinstance(event, ProgressEvent):
             self.state_manager.update_job_status(
                 event.job_id,
-                {"progress_current": event.current, "progress_total": event.total, "label": event.label},
+                {
+                    "progress_current": event.current,
+                    "progress_total": event.total,
+                    "label": event.label,
+                },
             )
             self.refresh_jobs()
             return
 
         if isinstance(event, JobStatusEvent):
-            update: Dict[str, object] = {"state": event.state.value}
+            update: dict[str, object] = {"state": event.state.value}
             if event.error:
                 update["error"] = event.error
             self.state_manager.update_job_status(event.job_id, update)
@@ -1632,13 +1845,17 @@ class CliperTUI(App):
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         if event.data_table.id == "jobs":
-            self.selected_job_id = getattr(event.row_key, "value", None) or str(event.row_key)
+            self.selected_job_id = getattr(event.row_key, "value", None) or str(
+                event.row_key
+            )
             self._load_selected_job_open_targets(self.selected_job_id)
             return
         if event.data_table.id != "library":
             return
 
-        self.selected_video_id = getattr(event.row_key, "value", None) or str(event.row_key)
+        self.selected_video_id = getattr(event.row_key, "value", None) or str(
+            event.row_key
+        )
         state = self.state_manager.get_video_state(self.selected_video_id) or {}
         try:
             details = self.query_one("#details", Static)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Regression test: logo_scale is applied in filter_complex.
 
@@ -25,8 +24,12 @@ def test_logo_scale_applied():
         scale=0.25,
     )
 
-    assert any("scale2ref" in c for c in chains), "Expected scale2ref in logo filtergraph"
-    assert any("main_w*0.25" in c for c in chains), "Expected logo_scale applied via main_w*scale"
+    assert any(
+        "scale2ref" in c for c in chains
+    ), "Expected scale2ref in logo filtergraph"
+    assert any(
+        "main_w*0.25" in c for c in chains
+    ), "Expected logo_scale applied via main_w*scale"
     assert out == "[v_out]"
 
 

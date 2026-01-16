@@ -1,11 +1,13 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import gc
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, Iterable, List, Optional, Protocol, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class EnsureDecision(str, Enum):
@@ -62,9 +64,9 @@ class DependencySpec:
 
 @dataclass(frozen=True)
 class EnsureResult:
-    completed: List[str]
-    skipped: List[str]
-    failed: Dict[str, str]
+    completed: list[str]
+    skipped: list[str]
+    failed: dict[str, str]
     canceled: bool
 
     @property
@@ -72,13 +74,13 @@ class EnsureResult:
         return (not self.canceled) and (not self.failed)
 
 
-def _parse_csv_env(name: str, default: str) -> List[str]:
+def _parse_csv_env(name: str, default: str) -> list[str]:
     raw = os.environ.get(name, default)
     parts = [p.strip() for p in raw.split(",")]
     return [p for p in parts if p]
 
 
-def _guess_faster_whisper_repo_id(model_size: str) -> Optional[str]:
+def _guess_faster_whisper_repo_id(model_size: str) -> str | None:
     # WhisperX uses faster-whisper under the hood; these are the canonical HF repos.
     # If WhisperX changes its defaults, we fall back to `whisperx.load_model(...)`.
     mapping = {
@@ -111,8 +113,11 @@ def _hf_snapshot_download(repo_id: str) -> None:
 
     snapshot_download(repo_id=repo_id)
 
+
 def _dependency_markers_dir() -> str:
-    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache"
+    )
     return os.path.join(base, "cliper", "dependency_markers")
 
 
@@ -136,22 +141,22 @@ def mark_dependency_installed(key: str) -> None:
         return
 
 
-_WHISPER_MODEL_CACHE: Dict[Tuple[str, str, str], object] = {}
-_ALIGN_MODEL_CACHE: Dict[Tuple[str, str], Tuple[object, object]] = {}
+_WHISPER_MODEL_CACHE: dict[tuple[str, str, str], object] = {}
+_ALIGN_MODEL_CACHE: dict[tuple[str, str], tuple[object, object]] = {}
 _ENSURED_IN_PROCESS: set[str] = set()
 
 
 def build_required_dependencies(
     *,
     whisper_model_size: str = "base",
-    align_language_codes: Optional[Sequence[str]] = None,
+    align_language_codes: Sequence[str] | None = None,
     whisper_device: str = "cpu",
     whisper_compute_type: str = "int8",
-) -> List[DependencySpec]:
+) -> list[DependencySpec]:
     if align_language_codes is None:
         align_language_codes = _parse_csv_env("CLIPER_PREFETCH_ALIGN_LANGS", "en,es")
 
-    specs: List[DependencySpec] = []
+    specs: list[DependencySpec] = []
     whisper_key = f"whisper_model:{whisper_model_size}"
     specs.append(
         DependencySpec(
@@ -173,9 +178,13 @@ def build_required_dependencies(
             DependencySpec(
                 key=align_key,
                 description=f"Alignment model ({lang})",
-                check=lambda lang=lang, key=align_key: is_dependency_marked_installed(key)
+                check=lambda lang=lang, key=align_key: is_dependency_marked_installed(
+                    key
+                )
                 or is_align_model_cached(language_code=lang),
-                ensure=lambda lang=lang: prefetch_align_model(language_code=lang, device=whisper_device),
+                ensure=lambda lang=lang: prefetch_align_model(
+                    language_code=lang, device=whisper_device
+                ),
             )
         )
 
@@ -185,20 +194,22 @@ def build_required_dependencies(
 def ensure_all_required(
     specs: Sequence[DependencySpec],
     *,
-    reporter: Optional[DependencyReporter] = None,
-    on_error: Optional[OnErrorFn] = None,
+    reporter: DependencyReporter | None = None,
+    on_error: OnErrorFn | None = None,
     max_attempts: int = 2,
 ) -> EnsureResult:
     reporter = reporter or NullDependencyReporter()
 
-    completed: List[str] = []
-    skipped: List[str] = []
-    failed: Dict[str, str] = {}
+    completed: list[str] = []
+    skipped: list[str] = []
+    failed: dict[str, str] = {}
 
     total = len(specs)
     for idx, spec in enumerate(specs, start=1):
         if reporter.is_cancelled():
-            return EnsureResult(completed=completed, skipped=skipped, failed=failed, canceled=True)
+            return EnsureResult(
+                completed=completed, skipped=skipped, failed=failed, canceled=True
+            )
 
         if spec.key in _ENSURED_IN_PROCESS:
             skipped.append(spec.key)
@@ -244,7 +255,9 @@ def ensure_all_required(
         while True:
             attempt += 1
             if reporter.is_cancelled():
-                return EnsureResult(completed=completed, skipped=skipped, failed=failed, canceled=True)
+                return EnsureResult(
+                    completed=completed, skipped=skipped, failed=failed, canceled=True
+                )
 
             reporter.report(
                 DependencyProgress(
@@ -311,20 +324,24 @@ def ensure_all_required(
                 if decision == EnsureDecision.SKIP:
                     failed[spec.key] = str(e)
                     break
-                return EnsureResult(completed=completed, skipped=skipped, failed=failed, canceled=True)
+                return EnsureResult(
+                    completed=completed, skipped=skipped, failed=failed, canceled=True
+                )
 
-    return EnsureResult(completed=completed, skipped=skipped, failed=failed, canceled=False)
+    return EnsureResult(
+        completed=completed, skipped=skipped, failed=failed, canceled=False
+    )
 
 
 def ensure_transcription_dependencies(
     *,
     model_size: str,
-    language_code: Optional[str] = None,
+    language_code: str | None = None,
     device: str = "cpu",
     compute_type: str = "int8",
-    reporter: Optional[DependencyReporter] = None,
+    reporter: DependencyReporter | None = None,
 ) -> EnsureResult:
-    langs: List[str] = []
+    langs: list[str] = []
     if language_code:
         langs = [language_code]
 
@@ -354,7 +371,12 @@ def prefetch_whisper_model(*, model_size: str, device: str, compute_type: str) -
             # Fall back to WhisperX's own download mechanism.
             pass
 
-    model = load_whisper_model(model_size=model_size, device=device, compute_type=compute_type, cache_in_memory=False)
+    model = load_whisper_model(
+        model_size=model_size,
+        device=device,
+        compute_type=compute_type,
+        cache_in_memory=False,
+    )
     del model
     gc.collect()
 
@@ -383,7 +405,7 @@ def load_whisper_model(
     return model
 
 
-def _resolve_align_repo_id(language_code: str) -> Optional[str]:
+def _resolve_align_repo_id(language_code: str) -> str | None:
     try:
         from whisperx.alignment import DEFAULT_ALIGN_MODELS  # type: ignore
     except Exception:
@@ -413,7 +435,9 @@ def prefetch_align_model(*, language_code: str, device: str) -> None:
         except Exception:
             pass
 
-    model_a, metadata = load_align_model(language_code=language_code, device=device, cache_in_memory=False)
+    model_a, metadata = load_align_model(
+        language_code=language_code, device=device, cache_in_memory=False
+    )
     del model_a
     del metadata
     gc.collect()
@@ -424,7 +448,7 @@ def load_align_model(
     language_code: str,
     device: str,
     cache_in_memory: bool = True,
-) -> Tuple[object, object]:
+) -> tuple[object, object]:
     cache_key = (language_code, device)
     if cache_in_memory and cache_key in _ALIGN_MODEL_CACHE:
         return _ALIGN_MODEL_CACHE[cache_key]
@@ -436,7 +460,9 @@ def load_align_model(
             "WhisperX is not installed; install project dependencies to download alignment models."
         ) from e
 
-    model_a, metadata = whisperx.load_align_model(language_code=language_code, device=device)
+    model_a, metadata = whisperx.load_align_model(
+        language_code=language_code, device=device
+    )
     if cache_in_memory:
         _ALIGN_MODEL_CACHE[cache_key] = (model_a, metadata)
     return model_a, metadata

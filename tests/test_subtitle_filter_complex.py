@@ -4,6 +4,7 @@ Test para generar comando FFmpeg con face tracking + subtítulos
 y diagnosticar por qué los subtítulos se duplican.
 """
 
+
 def simulate_ffmpeg_command_with_face_tracking():
     """
     Simula el comando FFmpeg que se genera cuando:
@@ -20,7 +21,7 @@ def simulate_ffmpeg_command_with_face_tracking():
 
     # Simular subtitle_path_escaped
     subtitle_path_str = subtitle_file
-    subtitle_path_escaped = subtitle_path_str.replace('\\', '\\\\').replace(':', '\\:')
+    subtitle_path_escaped = subtitle_path_str.replace("\\", "\\\\").replace(":", "\\:")
 
     # Simular filtro de subtítulos (small style)
     subtitle_filter = f"subtitles='{subtitle_path_escaped}':force_style='"
@@ -38,29 +39,41 @@ def simulate_ffmpeg_command_with_face_tracking():
     # Construir comando (CON FACE TRACKING)
     cmd = [
         "ffmpeg",
-        "-i", str(video_reframed),      # [0] Video reframed (sin audio)
-        "-ss", str(start_time),
-        "-i", str(video_original),      # [1] Video original (con audio)
-        "-t", str(duration),
-        "-filter_complex", f"[0:v]{subtitle_filter}[v]",
-        "-map", "[v]",
-        "-map", "1:a",
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-preset", "fast",
-        "-crf", "23",
-        "-y", str(output_file)
+        "-i",
+        str(video_reframed),  # [0] Video reframed (sin audio)
+        "-ss",
+        str(start_time),
+        "-i",
+        str(video_original),  # [1] Video original (con audio)
+        "-t",
+        str(duration),
+        "-filter_complex",
+        f"[0:v]{subtitle_filter}[v]",
+        "-map",
+        "[v]",
+        "-map",
+        "1:a",
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-y",
+        str(output_file),
     ]
 
-    print("="*80)
+    print("=" * 80)
     print("COMANDO FFmpeg GENERADO (Face Tracking + Subtítulos):")
-    print("="*80)
-    print(' '.join(cmd))
+    print("=" * 80)
+    print(" ".join(cmd))
     print()
 
-    print("="*80)
+    print("=" * 80)
     print("ANÁLISIS DEL FILTRO:")
-    print("="*80)
+    print("=" * 80)
     print(f"Filtro completo: {subtitle_filter}")
     print()
 
@@ -84,60 +97,84 @@ def simulate_ffmpeg_command_with_face_tracking():
     subtitle_filter_alt += "MarginV=100"
     subtitle_filter_alt += "'"
 
-    print("="*80)
+    print("=" * 80)
     print("SOLUCIÓN ALTERNATIVA (sin comillas en path):")
-    print("="*80)
+    print("=" * 80)
     print(f"Filtro alternativo: {subtitle_filter_alt}")
     print()
 
     cmd_alt = [
         "ffmpeg",
-        "-i", str(video_reframed),
-        "-ss", str(start_time),
-        "-i", str(video_original),
-        "-t", str(duration),
-        "-filter_complex", f"[0:v]{subtitle_filter_alt}[v]",
-        "-map", "[v]",
-        "-map", "1:a",
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-preset", "fast",
-        "-crf", "23",
-        "-y", str(output_file)
+        "-i",
+        str(video_reframed),
+        "-ss",
+        str(start_time),
+        "-i",
+        str(video_original),
+        "-t",
+        str(duration),
+        "-filter_complex",
+        f"[0:v]{subtitle_filter_alt}[v]",
+        "-map",
+        "[v]",
+        "-map",
+        "1:a",
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-y",
+        str(output_file),
     ]
 
     print("COMANDO ALTERNATIVO:")
-    print(' '.join(cmd_alt))
+    print(" ".join(cmd_alt))
     print()
 
     # Otra alternativa: aplicar subtítulos DESPUÉS de mapear
-    print("="*80)
+    print("=" * 80)
     print("SOLUCIÓN ALTERNATIVA 2 (subtítulos fuera de filter_complex):")
-    print("="*80)
+    print("=" * 80)
 
     cmd_alt2 = [
         "ffmpeg",
-        "-i", str(video_reframed),
-        "-ss", str(start_time),
-        "-i", str(video_original),
-        "-t", str(duration),
-        "-map", "0:v",         # Video reframed
-        "-map", "1:a",         # Audio original
-        "-vf", subtitle_filter,  # Subtítulos con -vf en lugar de filter_complex
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-preset", "fast",
-        "-crf", "23",
-        "-y", str(output_file)
+        "-i",
+        str(video_reframed),
+        "-ss",
+        str(start_time),
+        "-i",
+        str(video_original),
+        "-t",
+        str(duration),
+        "-map",
+        "0:v",  # Video reframed
+        "-map",
+        "1:a",  # Audio original
+        "-vf",
+        subtitle_filter,  # Subtítulos con -vf en lugar de filter_complex
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-y",
+        str(output_file),
     ]
 
     print("COMANDO ALTERNATIVO 2:")
-    print(' '.join(cmd_alt2))
+    print(" ".join(cmd_alt2))
     print()
 
-    print("="*80)
+    print("=" * 80)
     print("RECOMENDACIÓN:")
-    print("="*80)
+    print("=" * 80)
     print("Usar SOLUCIÓN ALTERNATIVA 2:")
     print("  - Mapear video y audio primero con -map")
     print("  - Aplicar subtítulos con -vf DESPUÉS del mapeo")

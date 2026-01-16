@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Cleanup Manager - Gestiona eliminación de artifacts del proyecto
 
@@ -14,9 +13,10 @@ Responsabilidades:
 - Dry run mode para simular sin eliminar
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional
 import shutil
+from pathlib import Path
+from typing import Optional
+
 from rich.console import Console
 from rich.table import Table
 
@@ -46,7 +46,7 @@ class CleanupManager:
         self,
         downloads_dir: str = "downloads",
         temp_dir: str = "temp",
-        output_dir: str = "output"
+        output_dir: str = "output",
     ):
         """
         Inicializa CleanupManager
@@ -70,7 +70,7 @@ class CleanupManager:
             f"output={self.output_dir}"
         )
 
-    def get_video_artifacts(self, video_key: str) -> Dict[str, Dict]:
+    def get_video_artifacts(self, video_key: str) -> dict[str, dict]:
         """
         Retorna todos los artifacts de un video específico
 
@@ -101,58 +101,60 @@ class CleanupManager:
             return artifacts
 
         # 1. Downloaded video
-        filename = video_state.get('filename')
+        filename = video_state.get("filename")
         if filename:
             download_path = self.downloads_dir / filename
-            artifacts['download'] = {
-                'path': download_path,
-                'exists': download_path.exists(),
-                'size': download_path.stat().st_size if download_path.exists() else 0,
-                'type': 'video'
+            artifacts["download"] = {
+                "path": download_path,
+                "exists": download_path.exists(),
+                "size": download_path.stat().st_size if download_path.exists() else 0,
+                "type": "video",
             }
 
         # 2. Transcript
-        transcript_path = video_state.get('transcript_path')
+        transcript_path = video_state.get("transcript_path")
         if transcript_path:
             transcript_path = Path(transcript_path)
-            artifacts['transcript'] = {
-                'path': transcript_path,
-                'exists': transcript_path.exists(),
-                'size': transcript_path.stat().st_size if transcript_path.exists() else 0,
-                'type': 'json'
+            artifacts["transcript"] = {
+                "path": transcript_path,
+                "exists": transcript_path.exists(),
+                "size": (
+                    transcript_path.stat().st_size if transcript_path.exists() else 0
+                ),
+                "type": "json",
             }
 
         # 3. Clips metadata
-        clips_path_str = video_state.get('clips_metadata_path')
+        clips_path_str = video_state.get("clips_metadata_path")
         if clips_path_str:
             clips_path = Path(clips_path_str)
-            artifacts['clips_metadata'] = {
-                'path': clips_path,
-                'exists': clips_path.exists(),
-                'size': clips_path.stat().st_size if clips_path.exists() else 0,
-                'type': 'json'
+            artifacts["clips_metadata"] = {
+                "path": clips_path,
+                "exists": clips_path.exists(),
+                "size": clips_path.stat().st_size if clips_path.exists() else 0,
+                "type": "json",
             }
 
         # 4. Exported clips (directorio completo)
-        output_clips = video_state.get('exported_clips', [])
-        if output_clips or video_state.get('clips_generated'):
+        output_clips = video_state.get("exported_clips", [])
+        if output_clips or video_state.get("clips_generated"):
             # Calcular tamaño total del directorio de outputs
             output_video_dir = self.output_dir / video_key
             total_size = 0
             clip_count = 0
 
             if output_video_dir.exists():
-                for clip_file in output_video_dir.rglob('*.mp4'):
+                for clip_file in output_video_dir.rglob("*.mp4"):
                     if clip_file.exists():
                         total_size += clip_file.stat().st_size
                         clip_count += 1
 
-            artifacts['output'] = {
-                'path': output_video_dir,
-                'exists': output_video_dir.exists(),
-                'size': total_size,
-                'type': 'directory',
-                'clip_count': clip_count
+            artifacts["output"] = {
+                "path": output_video_dir,
+                "exists": output_video_dir.exists(),
+                "size": total_size,
+                "type": "directory",
+                "clip_count": clip_count,
             }
 
         # 5. Temporary files (orphaned *_temp.mp4 files from interrupted exports)
@@ -165,18 +167,18 @@ class CleanupManager:
 
         output_video_dir = self.output_dir / video_key
         if output_video_dir.exists():
-            for temp_file in output_video_dir.glob('*_temp.mp4'):
+            for temp_file in output_video_dir.glob("*_temp.mp4"):
                 if temp_file.exists():
                     temp_files.append(temp_file)
                     temp_total_size += temp_file.stat().st_size
 
         if temp_files:
-            artifacts['temp_files'] = {
-                'path': temp_files,  # Lista de paths
-                'exists': True,
-                'size': temp_total_size,
-                'type': 'temp_videos',
-                'file_count': len(temp_files)
+            artifacts["temp_files"] = {
+                "path": temp_files,  # Lista de paths
+                "exists": True,
+                "size": temp_total_size,
+                "type": "temp_videos",
+                "file_count": len(temp_files),
             }
 
         return artifacts
@@ -184,9 +186,9 @@ class CleanupManager:
     def delete_video_artifacts(
         self,
         video_key: str,
-        artifact_types: Optional[List[str]] = None,
-        dry_run: bool = False
-    ) -> Dict[str, bool]:
+        artifact_types: Optional[list[str]] = None,
+        dry_run: bool = False,
+    ) -> dict[str, bool]:
         """
         Elimina artifacts específicos de un video
 
@@ -205,7 +207,13 @@ class CleanupManager:
             Dict con resultado de cada eliminación: {'download': True, 'transcript': False, ...}
         """
         if artifact_types is None:
-            artifact_types = ['download', 'transcript', 'clips_metadata', 'output', 'temp_files']
+            artifact_types = [
+                "download",
+                "transcript",
+                "clips_metadata",
+                "output",
+                "temp_files",
+            ]
 
         artifacts = self.get_video_artifacts(video_key)
         results = {}
@@ -218,23 +226,25 @@ class CleanupManager:
                 results[artifact_type] = True  # Nada que eliminar = éxito
                 continue
 
-            artifact_path = artifact_info['path']
+            artifact_path = artifact_info["path"]
 
-            if not artifact_info['exists']:
+            if not artifact_info["exists"]:
                 logger.warning(f"{artifact_type} path doesn't exist: {artifact_path}")
                 results[artifact_type] = True  # Ya no existe = éxito
                 continue
 
             # Dry run: solo reportar
             if dry_run:
-                size_mb = artifact_info['size'] / 1024 / 1024
-                logger.info(f"[DRY RUN] Would delete {artifact_type}: {artifact_path} ({size_mb:.2f} MB)")
+                size_mb = artifact_info["size"] / 1024 / 1024
+                logger.info(
+                    f"[DRY RUN] Would delete {artifact_type}: {artifact_path} ({size_mb:.2f} MB)"
+                )
                 results[artifact_type] = True
                 continue
 
             # Eliminar
             try:
-                if artifact_info['type'] == 'directory':
+                if artifact_info["type"] == "directory":
                     shutil.rmtree(artifact_path)
                     logger.info(
                         f"Deleted directory {artifact_path} "
@@ -260,10 +270,7 @@ class CleanupManager:
         return results
 
     def _update_state_after_cleanup(
-        self,
-        video_key: str,
-        deleted_types: List[str],
-        results: Dict[str, bool]
+        self, video_key: str, deleted_types: list[str], results: dict[str, bool]
     ):
         """
         Actualiza project_state.json después de eliminar artifacts
@@ -281,29 +288,29 @@ class CleanupManager:
         video_state = self.state_manager.state[video_key]
 
         # Marcar como no completado según lo eliminado
-        if 'download' in deleted_types and results.get('download'):
-            video_state['downloaded'] = False
-            video_state['filename'] = None
+        if "download" in deleted_types and results.get("download"):
+            video_state["downloaded"] = False
+            video_state["filename"] = None
             logger.debug(f"Marked {video_key} as not downloaded in state")
 
-        if 'transcript' in deleted_types and results.get('transcript'):
-            video_state['transcribed'] = False
-            video_state['transcript_path'] = None
-            video_state['transcription_path'] = None  # Legacy field
+        if "transcript" in deleted_types and results.get("transcript"):
+            video_state["transcribed"] = False
+            video_state["transcript_path"] = None
+            video_state["transcription_path"] = None  # Legacy field
             logger.debug(f"Marked {video_key} as not transcribed in state")
 
-        if 'clips_metadata' in deleted_types and results.get('clips_metadata'):
-            video_state['clips_generated'] = False
-            video_state['clips'] = []
-            video_state['clips_metadata_path'] = None
+        if "clips_metadata" in deleted_types and results.get("clips_metadata"):
+            video_state["clips_generated"] = False
+            video_state["clips"] = []
+            video_state["clips_metadata_path"] = None
             logger.debug(f"Marked {video_key} clips as not generated in state")
 
-        if 'output' in deleted_types and results.get('output'):
-            video_state['exported_clips'] = []
+        if "output" in deleted_types and results.get("output"):
+            video_state["exported_clips"] = []
             logger.debug(f"Cleared exported clips for {video_key} in state")
 
         # Si eliminamos TODO, remover video del state completamente
-        all_types = ['download', 'transcript', 'clips_metadata', 'output']
+        all_types = ["download", "transcript", "clips_metadata", "output"]
         if all(t in deleted_types for t in all_types):
             del self.state_manager.state[video_key]
             logger.info(f"Removed {video_key} from state (all artifacts deleted)")
@@ -313,7 +320,7 @@ class CleanupManager:
         # Persistir cambios
         self.state_manager._save_state()
 
-    def delete_all_project_data(self, dry_run: bool = False) -> Dict[str, bool]:
+    def delete_all_project_data(self, dry_run: bool = False) -> dict[str, bool]:
         """
         Elimina TODOS los artifacts del proyecto (fresh start)
 
@@ -332,9 +339,9 @@ class CleanupManager:
         results = {}
 
         directories = {
-            'downloads': self.downloads_dir,
-            'temp': self.temp_dir,
-            'output': self.output_dir
+            "downloads": self.downloads_dir,
+            "temp": self.temp_dir,
+            "output": self.output_dir,
         }
 
         for dir_name, dir_path in directories.items():
@@ -347,9 +354,7 @@ class CleanupManager:
             total_size = 0
             try:
                 total_size = sum(
-                    f.stat().st_size
-                    for f in dir_path.rglob('*')
-                    if f.is_file()
+                    f.stat().st_size for f in dir_path.rglob("*") if f.is_file()
                 )
             except Exception as e:
                 logger.warning(f"Could not calculate size of {dir_name}/: {e}")
@@ -375,10 +380,10 @@ class CleanupManager:
 
         # Limpiar caché y archivos temporales residuales
         if not dry_run:
-            results['cache'] = self._clean_cache_and_residuals()
+            results["cache"] = self._clean_cache_and_residuals()
         else:
             logger.info("[DRY RUN] Would clean cache and residual temporary files")
-            results['cache'] = True
+            results["cache"] = True
 
         # Reset state
         if not dry_run:
@@ -386,13 +391,13 @@ class CleanupManager:
                 self.state_manager.state = {}
                 self.state_manager._save_state()
                 logger.info("Reset project state")
-                results['state'] = True
+                results["state"] = True
             except Exception as e:
                 logger.error(f"Failed to reset state: {e}")
-                results['state'] = False
+                results["state"] = False
         else:
             logger.info("[DRY RUN] Would reset project state")
-            results['state'] = True
+            results["state"] = True
 
         return results
 
@@ -416,7 +421,7 @@ class CleanupManager:
             cleaned_size = 0
 
             # 1. Limpiar archivos lock en temp/
-            lock_patterns = ['*.lock', '.lock']
+            lock_patterns = ["*.lock", ".lock"]
             for pattern in lock_patterns:
                 for lock_file in self.temp_dir.glob(pattern):
                     try:
@@ -430,7 +435,7 @@ class CleanupManager:
 
             # 2. Limpiar archivos temporales de FFmpeg/video_exporter
             # (Estos NO deberían estar acá si todo limpió bien, pero por si acaso)
-            temp_patterns = ['temp_*.mp4', 'temp_reframed_*.mp4', '*_temp.mp4']
+            temp_patterns = ["temp_*.mp4", "temp_reframed_*.mp4", "*_temp.mp4"]
             for pattern in temp_patterns:
                 for temp_file in self.output_dir.rglob(pattern):
                     try:
@@ -443,9 +448,9 @@ class CleanupManager:
                         logger.warning(f"Could not remove temp file {temp_file}: {e}")
 
             # 3. Limpiar SRTs huérfanos (clips sin .mp4 correspondiente)
-            for srt_file in self.output_dir.rglob('*.srt'):
+            for srt_file in self.output_dir.rglob("*.srt"):
                 try:
-                    mp4_file = srt_file.with_suffix('.mp4')
+                    mp4_file = srt_file.with_suffix(".mp4")
                     if not mp4_file.exists():
                         size = srt_file.stat().st_size
                         srt_file.unlink()
@@ -458,13 +463,13 @@ class CleanupManager:
             # 4. Limpiar __pycache__ solo en src/ y tests/ (caché Python compilado)
             # ESPECÍFICO: Solo en directorios conocidos donde realmente se genera
             source_dirs = [
-                self.downloads_dir.parent / 'src',
-                self.downloads_dir.parent / 'tests'
+                self.downloads_dir.parent / "src",
+                self.downloads_dir.parent / "tests",
             ]
 
             for source_dir in source_dirs:
                 if source_dir.exists():
-                    for pycache_dir in source_dir.rglob('__pycache__'):
+                    for pycache_dir in source_dir.rglob("__pycache__"):
                         try:
                             shutil.rmtree(pycache_dir)
                             cleaned_count += 1
@@ -474,7 +479,7 @@ class CleanupManager:
 
             # 5. Limpiar .DS_Store solo en output/ (residuales de macOS)
             # ESPECÍFICO: Solo donde puede quedar basura de Finder
-            for ds_store in self.output_dir.rglob('.DS_Store'):
+            for ds_store in self.output_dir.rglob(".DS_Store"):
                 try:
                     size = ds_store.stat().st_size
                     ds_store.unlink()
@@ -486,7 +491,9 @@ class CleanupManager:
 
             cleaned_size_mb = cleaned_size / 1024 / 1024
             if cleaned_count > 0:
-                logger.info(f"Cleaned {cleaned_count} cache/residual files ({cleaned_size_mb:.2f} MB)")
+                logger.info(
+                    f"Cleaned {cleaned_count} cache/residual files ({cleaned_size_mb:.2f} MB)"
+                )
             else:
                 logger.info("No cache or residual files found")
 
@@ -538,10 +545,10 @@ class CleanupManager:
                     return f"{size_bytes / 1024:.1f} KB"
                 return f"{mb:.1f} MB"
 
-            download_size = artifacts.get('download', {}).get('size', 0)
-            transcript_size = artifacts.get('transcript', {}).get('size', 0)
-            clips_size = artifacts.get('clips_metadata', {}).get('size', 0)
-            output_size = artifacts.get('output', {}).get('size', 0)
+            download_size = artifacts.get("download", {}).get("size", 0)
+            transcript_size = artifacts.get("transcript", {}).get("size", 0)
+            clips_size = artifacts.get("clips_metadata", {}).get("size", 0)
+            output_size = artifacts.get("output", {}).get("size", 0)
 
             total_size = download_size + transcript_size + clips_size + output_size
 
@@ -554,7 +561,7 @@ class CleanupManager:
                 format_size(transcript_size),
                 format_size(clips_size),
                 format_size(output_size),
-                format_size(total_size)
+                format_size(total_size),
             )
 
         self.console.print(table)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Base Prompts para AI Copy Generation
 
@@ -186,6 +185,7 @@ IMPORTANTE:
 # ============================================================================
 # HELPER FUNCTION
 # ============================================================================
+
 
 def build_base_system_prompt(include_format: bool = True) -> str:
     """

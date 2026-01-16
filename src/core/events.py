@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .models import JobState
 
@@ -19,8 +18,10 @@ class LogLevel(str, Enum):
 @dataclass(frozen=True)
 class CoreEvent:
     job_id: str
-    video_id: Optional[str] = None
-    ts: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    video_id: str | None = None
+    ts: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
 
 
 @dataclass(frozen=True)
@@ -38,11 +39,10 @@ class ProgressEvent(CoreEvent):
 
 @dataclass(frozen=True)
 class StateEvent(CoreEvent):
-    updates: Dict[str, Any] = field(default_factory=dict)
+    updates: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class JobStatusEvent(CoreEvent):
     state: JobState = JobState.PENDING
-    error: Optional[str] = None
-
+    error: str | None = None

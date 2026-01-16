@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 CLIPER - Face Reframing Module (PASO3)
 Intelligent face tracking for vertical video (9:16) export
@@ -99,8 +98,8 @@ from __future__ import annotations
 _OPTIONAL_DEPENDENCY_ERROR = None
 try:
     import cv2  # type: ignore
-    import numpy as np  # type: ignore
     import mediapipe as mp  # type: ignore
+    import numpy as np  # type: ignore
 except ModuleNotFoundError as e:
     cv2 = None  # type: ignore
     np = None  # type: ignore
@@ -112,8 +111,7 @@ except Exception as e:
     mp = None  # type: ignore
     _OPTIONAL_DEPENDENCY_ERROR = str(e)
 import subprocess
-from pathlib import Path
-from typing import Optional, Dict, Tuple
+
 from loguru import logger
 
 
@@ -136,9 +134,9 @@ class FFmpegVideoWriter:
         width: int,
         height: int,
         fps: float,
-        codec: str = 'libx264',
-        preset: str = 'fast',
-        crf: int = 23
+        codec: str = "libx264",
+        preset: str = "fast",
+        crf: int = 23,
     ):
         """
         Inicializa VideoWriter con FFmpeg subprocess.
@@ -163,18 +161,27 @@ class FFmpegVideoWriter:
         # Construir comando FFmpeg
         # Patrón coherente con video_exporter.py líneas 295-304
         cmd = [
-            'ffmpeg',
-            '-y',  # Sobrescribir si existe
-            '-f', 'rawvideo',
-            '-vcodec', 'rawvideo',
-            '-pix_fmt', 'bgr24',  # OpenCV usa BGR
-            '-s', f'{width}x{height}',
-            '-r', str(fps),
-            '-i', '-',  # stdin
-            '-c:v', codec,
-            '-preset', preset,
-            '-crf', str(crf),
-            str(output_path)
+            "ffmpeg",
+            "-y",  # Sobrescribir si existe
+            "-f",
+            "rawvideo",
+            "-vcodec",
+            "rawvideo",
+            "-pix_fmt",
+            "bgr24",  # OpenCV usa BGR
+            "-s",
+            f"{width}x{height}",
+            "-r",
+            str(fps),
+            "-i",
+            "-",  # stdin
+            "-c:v",
+            codec,
+            "-preset",
+            preset,
+            "-crf",
+            str(crf),
+            str(output_path),
         ]
 
         try:
@@ -183,7 +190,7 @@ class FFmpegVideoWriter:
                 cmd,
                 stdin=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE
+                stdout=subprocess.PIPE,
             )
             self._opened = True
             logger.debug(f"FFmpegVideoWriter initialized: {codec} @ {width}x{height}")
@@ -236,8 +243,14 @@ class FFmpegVideoWriter:
 
                 # Verificar si hubo errores
                 if self.process.returncode != 0:
-                    stderr = self.process.stderr.read().decode() if self.process.stderr else ""
-                    logger.warning(f"FFmpeg finished with code {self.process.returncode}: {stderr[:200]}")
+                    stderr = (
+                        self.process.stderr.read().decode()
+                        if self.process.stderr
+                        else ""
+                    )
+                    logger.warning(
+                        f"FFmpeg finished with code {self.process.returncode}: {stderr[:200]}"
+                    )
 
                 logger.debug(f"FFmpegVideoWriter released: {self.output_path}")
 
@@ -275,7 +288,7 @@ class FaceReframer:
         frame_sample_rate: int = 3,
         strategy: str = "keep_in_frame",
         safe_zone_margin: float = 0.15,
-        min_detection_confidence: float = 0.5
+        min_detection_confidence: float = 0.5,
     ):
         if cv2 is None or mp is None or np is None:
             raise ModuleNotFoundError(
@@ -310,16 +323,18 @@ class FaceReframer:
         self.mp_face_detection = mp.solutions.face_detection
         self.face_detector = self.mp_face_detection.FaceDetection(
             model_selection=1,  # 0=short-range (2m), 1=full-range (5m)
-            min_detection_confidence=min_detection_confidence
+            min_detection_confidence=min_detection_confidence,
         )
 
         # Estado interno para "keep_in_frame" strategy
         # Guardamos último crop para solo mover cuando necesario
         self.last_crop_x = None  # Usado en _calculate_crop_keep_in_frame
 
-        logger.info(f"FaceReframer initialized: strategy={strategy}, sample_rate={frame_sample_rate}")
+        logger.info(
+            f"FaceReframer initialized: strategy={strategy}, sample_rate={frame_sample_rate}"
+        )
 
-    def _detect_largest_face(self, frame) -> Optional[Dict]:
+    def _detect_largest_face(self, frame) -> dict | None:
         """
         Detecta el rostro más grande en frame usando MediaPipe
 
@@ -362,23 +377,23 @@ class FaceReframer:
             if area > max_area:
                 max_area = area
                 largest_face = {
-                    'x': x,
-                    'y': y,
-                    'width': width,
-                    'height': height,
-                    'center_x': x + width // 2,
-                    'center_y': y + height // 2,
+                    "x": x,
+                    "y": y,
+                    "width": width,
+                    "height": height,
+                    "center_x": x + width // 2,
+                    "center_y": y + height // 2,
                 }
 
         return largest_face
 
     def _calculate_crop_keep_in_frame(
         self,
-        face: Dict,
+        face: dict,
         frame_width: int,
         frame_height: int,
         target_width: int,
-        target_height: int
+        target_height: int,
     ) -> int:
         """
         ESTRATEGIA "KEEP IN FRAME" (Ben's Innovation)
@@ -417,28 +432,24 @@ class FaceReframer:
 
         # Si es primer frame, centrar rostro
         if self.last_crop_x is None:
-            crop_x = max(0, min(
-                face['center_x'] - target_width // 2,
-                frame_width - target_width
-            ))
+            crop_x = max(
+                0, min(face["center_x"] - target_width // 2, frame_width - target_width)
+            )
             self.last_crop_x = crop_x
             return crop_x
 
         # Calcular posición del rostro RELATIVA al crop actual
-        face_x_in_crop = face['center_x'] - self.last_crop_x
+        face_x_in_crop = face["center_x"] - self.last_crop_x
 
         # DECISIÓN CLAVE: Solo mover crop si rostro sale de safe zone
         if face_x_in_crop < safe_left:
             # Rostro salió por izquierda → mover crop a la izquierda
             # Posicionar crop para que rostro quede en borde izquierdo de safe zone
-            crop_x = max(0, face['center_x'] - int(safe_left))
+            crop_x = max(0, face["center_x"] - int(safe_left))
         elif face_x_in_crop > safe_right:
             # Rostro salió por derecha → mover crop a la derecha
             # Posicionar crop para que rostro quede en borde derecho de safe zone
-            crop_x = min(
-                frame_width - target_width,
-                face['center_x'] - int(safe_right)
-            )
+            crop_x = min(frame_width - target_width, face["center_x"] - int(safe_right))
         else:
             # Rostro dentro de safe zone → NO MOVER
             crop_x = self.last_crop_x
@@ -447,10 +458,7 @@ class FaceReframer:
         return crop_x
 
     def _calculate_crop_centered(
-        self,
-        face: Dict,
-        frame_width: int,
-        target_width: int
+        self, face: dict, frame_width: int, target_width: int
     ) -> int:
         """
         ESTRATEGIA "CENTERED" (Alternativa)
@@ -468,19 +476,18 @@ class FaceReframer:
         Returns:
             crop_x: Posición X del crop centrado en rostro
         """
-        crop_x = max(0, min(
-            face['center_x'] - target_width // 2,
-            frame_width - target_width
-        ))
+        crop_x = max(
+            0, min(face["center_x"] - target_width // 2, frame_width - target_width)
+        )
         return crop_x
 
     def reframe_video(
         self,
         input_path: str,
         output_path: str,
-        target_resolution: Tuple[int, int],
-        start_time: Optional[float] = None,
-        end_time: Optional[float] = None
+        target_resolution: tuple[int, int],
+        start_time: float | None = None,
+        end_time: float | None = None,
     ) -> str:
         """
         PIPELINE PRINCIPAL: Genera video con crop dinámico basado en face tracking
@@ -530,7 +537,9 @@ class FaceReframer:
 
         target_width, target_height = target_resolution
 
-        logger.info(f"Input: {frame_width}x{frame_height} @ {fps}fps, {total_frames} frames")
+        logger.info(
+            f"Input: {frame_width}x{frame_height} @ {fps}fps, {total_frames} frames"
+        )
         logger.info(f"Output: {target_width}x{target_height}")
 
         # DECISIÓN ARQUITECTÓNICA: Scale + Crop para 16:9 → 9:16
@@ -543,7 +552,9 @@ class FaceReframer:
         scaled_width = int(frame_width * scale_factor)
         scaled_height = int(frame_height * scale_factor)
 
-        logger.info(f"Scale factor: {scale_factor:.2f}x → Intermediate: {scaled_width}x{scaled_height}")
+        logger.info(
+            f"Scale factor: {scale_factor:.2f}x → Intermediate: {scaled_width}x{scaled_height}"
+        )
 
         # Validar que después de scale tenemos suficiente resolución
         if scaled_width < target_width or scaled_height < target_height:
@@ -569,7 +580,7 @@ class FaceReframer:
         # Codecs en orden de preferencia
         # libx264: Encoder H.264 software (mejor compatibilidad)
         # h264_videotoolbox: Hardware encoder macOS (más rápido)
-        codecs_to_try = ['libx264', 'h264_videotoolbox']
+        codecs_to_try = ["libx264", "h264_videotoolbox"]
         out = None
 
         for codec in codecs_to_try:
@@ -580,13 +591,15 @@ class FaceReframer:
                     height=target_height,
                     fps=fps,
                     codec=codec,
-                    preset='fast',  # Coherente con video_exporter.py
-                    crf=23          # Calidad coherente con video_exporter.py
+                    preset="fast",  # Coherente con video_exporter.py
+                    crf=23,  # Calidad coherente con video_exporter.py
                 )
 
                 if test_writer.isOpened():
                     # Test write con frame dummy
-                    dummy_frame = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+                    dummy_frame = np.zeros(
+                        (target_height, target_width, 3), dtype=np.uint8
+                    )
                     test_success = test_writer.write(dummy_frame)
 
                     if test_success:
@@ -594,7 +607,9 @@ class FaceReframer:
                         logger.info(f"Using codec: {codec} (FFmpeg subprocess)")
                         break
                     else:
-                        logger.warning(f"Codec {codec} opened but write() failed, trying next...")
+                        logger.warning(
+                            f"Codec {codec} opened but write() failed, trying next..."
+                        )
                         test_writer.release()
                 else:
                     test_writer.release()
@@ -642,10 +657,12 @@ class FaceReframer:
 
                     # FALLBACK: Si no detecta rostro por 10 frames → center crop
                     if frames_without_face > 10 and last_face is None:
-                        logger.warning(f"No face detected for 10+ frames at {frame_number}, using center crop")
+                        logger.warning(
+                            f"No face detected for 10+ frames at {frame_number}, using center crop"
+                        )
                         last_face = {
-                            'center_x': scaled_width // 2,
-                            'center_y': scaled_height // 2
+                            "center_x": scaled_width // 2,
+                            "center_y": scaled_height // 2,
                         }
 
             # Si nunca detectó rostro, usar center crop estático
@@ -655,7 +672,11 @@ class FaceReframer:
                 # PASO 3: Calcular crop según estrategia (sobre frame ESCALADO)
                 if self.strategy == "keep_in_frame":
                     crop_x = self._calculate_crop_keep_in_frame(
-                        last_face, scaled_width, scaled_height, target_width, target_height
+                        last_face,
+                        scaled_width,
+                        scaled_height,
+                        target_width,
+                        target_height,
                     )
                 else:  # centered
                     crop_x = self._calculate_crop_centered(
@@ -668,12 +689,14 @@ class FaceReframer:
             crop_y = (scaled_height - target_height) // 2
 
             cropped_frame = scaled_frame[
-                crop_y:crop_y + target_height,
-                crop_x:crop_x + target_width
+                crop_y : crop_y + target_height, crop_x : crop_x + target_width
             ]
 
             # Validar dimensiones antes de escribir
-            if cropped_frame.shape[1] != target_width or cropped_frame.shape[0] != target_height:
+            if (
+                cropped_frame.shape[1] != target_width
+                or cropped_frame.shape[0] != target_height
+            ):
                 logger.error(
                     f"Frame dimension mismatch at frame {frame_number}: "
                     f"expected {target_width}x{target_height}, "
@@ -684,7 +707,7 @@ class FaceReframer:
 
             # Validar formato del frame antes de escribir
             # VideoWriter requiere: BGR, uint8, contiguous array
-            if not cropped_frame.flags['C_CONTIGUOUS']:
+            if not cropped_frame.flags["C_CONTIGUOUS"]:
                 cropped_frame = np.ascontiguousarray(cropped_frame)
 
             if cropped_frame.dtype != np.uint8:
@@ -695,19 +718,20 @@ class FaceReframer:
             success = out.write(cropped_frame)
 
             # Log ALL failures, not just every 30
-            if not success:
-                if frame_number <= 10 or frame_number % 30 == 0:
-                    logger.error(
-                        f"VideoWriter.write() failed at frame {frame_number}. "
-                        f"Frame shape: {cropped_frame.shape}, dtype: {cropped_frame.dtype}, "
-                        f"contiguous: {cropped_frame.flags['C_CONTIGUOUS']}"
-                    )
+            if not success and (frame_number <= 10 or frame_number % 30 == 0):
+                logger.error(
+                    f"VideoWriter.write() failed at frame {frame_number}. "
+                    f"Frame shape: {cropped_frame.shape}, dtype: {cropped_frame.dtype}, "
+                    f"contiguous: {cropped_frame.flags['C_CONTIGUOUS']}"
+                )
 
             frame_number += 1
 
             # Progress log cada 30 frames
             if frame_number % 30 == 0:
-                progress = ((frame_number - start_frame) / (end_frame - start_frame)) * 100
+                progress = (
+                    (frame_number - start_frame) / (end_frame - start_frame)
+                ) * 100
                 logger.debug(f"Reframing progress: {progress:.1f}%")
 
         # Cleanup
@@ -719,5 +743,5 @@ class FaceReframer:
 
     def __del__(self):
         """Cleanup MediaPipe resources"""
-        if hasattr(self, 'face_detector'):
+        if hasattr(self, "face_detector"):
             self.face_detector.close()

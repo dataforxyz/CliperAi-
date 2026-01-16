@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 Setup Wizard - Guía inicial para configurar CLIPER
 """
+
 from __future__ import annotations
 
-from typing import Dict, Optional
+import contextlib
+from typing import TYPE_CHECKING, Optional
 
-from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
@@ -14,9 +14,11 @@ from textual.widgets import Button, Input, Static
 
 from src.config.settings_schema import SUBTITLE_PRESETS
 
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 # Platform presets con configuración optimizada para cada plataforma
-PLATFORM_PRESETS: Dict[str, Dict[str, object]] = {
+PLATFORM_PRESETS: dict[str, dict[str, object]] = {
     "tiktok": {
         "label": "TikTok / Reels",
         "description": "Short vertical clips (15-60s, 9:16)",
@@ -55,7 +57,7 @@ PLATFORM_PRESETS: Dict[str, Dict[str, object]] = {
 }
 
 # Descripciones de presets de subtitulos
-SUBTITLE_PRESET_INFO: Dict[str, str] = {
+SUBTITLE_PRESET_INFO: dict[str, str] = {
     "default": "Clean white text with outline",
     "bold": "Bold white text, high visibility",
     "yellow": "Classic yellow subtitles",
@@ -65,7 +67,7 @@ SUBTITLE_PRESET_INFO: Dict[str, str] = {
 }
 
 
-class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
+class SetupWizardModal(ModalScreen[Optional[dict[str, object]]]):
     """
     Modal de configuración inicial con pasos guiados.
     """
@@ -223,7 +225,7 @@ class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
         self._total_steps = 4
 
         # Collected settings
-        self._settings: Dict[str, object] = {}
+        self._settings: dict[str, object] = {}
 
         # Step-specific state
         self._selected_platform: str = "tiktok"
@@ -344,21 +346,37 @@ class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
 
         with Vertical(classes="options-grid"):
             for preset in sorted(SUBTITLE_PRESETS):
-                selected = "selected" if preset == self._selected_subtitle_preset else ""
+                selected = (
+                    "selected" if preset == self._selected_subtitle_preset else ""
+                )
                 desc = SUBTITLE_PRESET_INFO.get(preset, "")
-                with Vertical(classes=f"option-card {selected}", id=f"subtitle_{preset}"):
+                with Vertical(
+                    classes=f"option-card {selected}", id=f"subtitle_{preset}"
+                ):
                     yield Static(preset.capitalize(), classes="option-title")
                     yield Static(desc, classes="option-desc")
 
     def on_mount(self) -> None:
         self._update_navigation()
         # Load current settings as defaults
-        self._settings["logo_path"] = self._state_manager.get_setting("logo_path", "assets/logo.png")
-        self._settings["min_clip_duration"] = self._state_manager.get_setting("min_clip_duration", 30)
-        self._settings["max_clip_duration"] = self._state_manager.get_setting("max_clip_duration", 90)
-        self._settings["default_aspect_ratio"] = self._state_manager.get_setting("default_aspect_ratio", "")
-        self._settings["subtitle_preset"] = self._state_manager.get_setting("subtitle_preset", "default")
-        self._selected_subtitle_preset = str(self._settings.get("subtitle_preset", "default"))
+        self._settings["logo_path"] = self._state_manager.get_setting(
+            "logo_path", "assets/logo.png"
+        )
+        self._settings["min_clip_duration"] = self._state_manager.get_setting(
+            "min_clip_duration", 30
+        )
+        self._settings["max_clip_duration"] = self._state_manager.get_setting(
+            "max_clip_duration", 90
+        )
+        self._settings["default_aspect_ratio"] = self._state_manager.get_setting(
+            "default_aspect_ratio", ""
+        )
+        self._settings["subtitle_preset"] = self._state_manager.get_setting(
+            "subtitle_preset", "default"
+        )
+        self._selected_subtitle_preset = str(
+            self._settings.get("subtitle_preset", "default")
+        )
 
     def _update_navigation(self) -> None:
         """Update navigation buttons and step indicator."""
@@ -478,9 +496,8 @@ class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
         """Validate the current step before proceeding."""
         if self._current_step == 1:  # Branding step
             return self._validate_logo_path()
-        if self._current_step == 2:  # Platform step (custom mode)
-            if self._selected_platform == "custom":
-                return self._validate_custom_platform()
+        if self._current_step == 2 and self._selected_platform == "custom":
+            return self._validate_custom_platform()
         return True
 
     def _validate_logo_path(self) -> bool:
@@ -498,6 +515,7 @@ class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
         # Validate using the logo utility
         try:
             from src.utils.logo import coerce_logo_file
+
             result = coerce_logo_file(path)
             if result is None:
                 error_widget.update("Logo file not found or invalid format")
@@ -519,9 +537,7 @@ class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
 
             if min_val < 1:
                 return False
-            if max_val < min_val:
-                return False
-            return True
+            return not max_val < min_val
         except (ValueError, Exception):
             return False
 
@@ -542,8 +558,12 @@ class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
                     max_input = self.query_one("#input_max_duration", Input)
                     aspect_input = self.query_one("#input_aspect_ratio", Input)
 
-                    self._settings["min_clip_duration"] = int(min_input.value.strip() or "30")
-                    self._settings["max_clip_duration"] = int(max_input.value.strip() or "90")
+                    self._settings["min_clip_duration"] = int(
+                        min_input.value.strip() or "30"
+                    )
+                    self._settings["max_clip_duration"] = int(
+                        max_input.value.strip() or "90"
+                    )
                     self._settings["default_aspect_ratio"] = aspect_input.value.strip()
                 except Exception:
                     pass
@@ -555,10 +575,8 @@ class SetupWizardModal(ModalScreen[Optional[Dict[str, object]]]):
     def _save_all_settings(self) -> None:
         """Save all collected settings to state manager."""
         for key, value in self._settings.items():
-            try:
+            with contextlib.suppress(Exception):
                 self._state_manager.set_setting(key, value)
-            except Exception:
-                pass  # Skip invalid settings
 
         # Mark wizard as completed
         self._state_manager.set_setting("_wizard_completed", True)

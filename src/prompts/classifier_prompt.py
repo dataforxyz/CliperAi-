@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Classifier Prompt - Detección automática de estilo de contenido
 
@@ -234,6 +233,7 @@ help these students with a virtual person."
 # HELPER FUNCTION
 # ============================================================================
 
+
 def get_classifier_prompt() -> str:
     """
     Retorna el prompt de clasificación de estilos.
@@ -267,15 +267,18 @@ CLASSIFICATION_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "clip_id": {"type": "integer", "minimum": 1},
-                    "style": {"type": "string", "enum": ["viral", "educational", "storytelling"]},
+                    "style": {
+                        "type": "string",
+                        "enum": ["viral", "educational", "storytelling"],
+                    },
                     "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                    "reason": {"type": "string", "minLength": 10}
+                    "reason": {"type": "string", "minLength": 10},
                 },
-                "required": ["clip_id", "style", "confidence", "reason"]
-            }
+                "required": ["clip_id", "style", "confidence", "reason"],
+            },
         }
     },
-    "required": ["classifications"]
+    "required": ["classifications"],
 }
 
 """

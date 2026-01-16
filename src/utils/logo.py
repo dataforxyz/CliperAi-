@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
-
 
 DEFAULT_BUILTIN_LOGO_PATH = "assets/logo.png"
 _ALLOWED_LOGO_SUFFIXES = {".png", ".jpg", ".jpeg"}
@@ -47,7 +44,7 @@ def _get_builtin_logo_file() -> Path:
     return (_get_app_root() / DEFAULT_BUILTIN_LOGO_PATH).resolve()
 
 
-def _coerce_to_existing_logo_file(candidate: Optional[str]) -> Optional[Path]:
+def _coerce_to_existing_logo_file(candidate: str | None) -> Path | None:
     if not candidate:
         return None
 
@@ -79,10 +76,10 @@ def _coerce_to_existing_logo_file(candidate: Optional[str]) -> Optional[Path]:
 
 def resolve_logo_path(
     *,
-    user_logo_path: Optional[str] = None,
-    saved_logo_path: Optional[str] = None,
+    user_logo_path: str | None = None,
+    saved_logo_path: str | None = None,
     builtin_logo_path: str = DEFAULT_BUILTIN_LOGO_PATH,
-) -> Optional[str]:
+) -> str | None:
     """
     Resuelve una ruta de logo válida, con fallback seguro.
 
@@ -111,11 +108,11 @@ def resolve_logo_path(
     return None
 
 
-def is_valid_logo_location(location: Optional[str]) -> bool:
+def is_valid_logo_location(location: str | None) -> bool:
     return _coerce_to_existing_logo_file(location) is not None
 
 
-def coerce_logo_file(location: Optional[str]) -> Optional[str]:
+def coerce_logo_file(location: str | None) -> str | None:
     """
     Convierte una ubicación (archivo) a un path de archivo existente.
     No aplica fallback: si es inválido, retorna None.
@@ -146,10 +143,10 @@ def normalize_logo_setting_value(location: str) -> str:
 
 def list_logo_candidates(
     *,
-    saved_logo_path: Optional[str] = None,
+    saved_logo_path: str | None = None,
     builtin_logo_path: str = DEFAULT_BUILTIN_LOGO_PATH,
     logos_dir: str = "assets/logos",
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """
     List valid logo options for selection UIs.
 
@@ -164,9 +161,9 @@ def list_logo_candidates(
       3. All logo files in assets/logos/ directory
     """
     resolved_seen: set[str] = set()
-    options: List[Dict[str, str]] = []
+    options: list[dict[str, str]] = []
 
-    def _add(label: str, candidate: Optional[str]) -> None:
+    def _add(label: str, candidate: str | None) -> None:
         if not candidate:
             return
         resolved = _coerce_to_existing_logo_file(candidate)
@@ -178,7 +175,13 @@ def list_logo_candidates(
         resolved_seen.add(resolved_str)
 
         setting_value = normalize_logo_setting_value(candidate)
-        options.append({"name": label, "setting_value": setting_value, "resolved_path": resolved_str})
+        options.append(
+            {
+                "name": label,
+                "setting_value": setting_value,
+                "resolved_path": resolved_str,
+            }
+        )
 
     # Built-in first so it stays stable as a default option.
     _add("Built-in", builtin_logo_path)

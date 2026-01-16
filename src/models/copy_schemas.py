@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Pydantic Schemas para AI Copy Generation
 
@@ -12,14 +11,15 @@ Pydantic valida automáticamente:
 Si Gemini se equivoca, Pydantic rechaza y LangGraph reintenta.
 """
 
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Literal
 from datetime import datetime
+from typing import Literal
 
+from pydantic import BaseModel, Field, field_validator
 
 # ============================================================================
 # METADATA DE UN CLIP
 # ============================================================================
+
 
 class CopyMetadata(BaseModel):
     """
@@ -37,18 +37,16 @@ class CopyMetadata(BaseModel):
     """
 
     sentiment: Literal[
-        "educational",          # Explica algo, enseña
-        "humorous",            # Gracioso, ligero
-        "inspirational",       # Motivacional
-        "controversial",       # Opinionado, debate
-        "curious_educational", # Preguntas que educan
-        "relatable",          # "Esto me pasa a mí"
-        "storytelling"        # Narrativa, anécdota
-    ] = Field(
-        description="Tono emocional del contenido"
-    )
+        "educational",  # Explica algo, enseña
+        "humorous",  # Gracioso, ligero
+        "inspirational",  # Motivacional
+        "controversial",  # Opinionado, debate
+        "curious_educational",  # Preguntas que educan
+        "relatable",  # "Esto me pasa a mí"
+        "storytelling",  # Narrativa, anécdota
+    ] = Field(description="Tono emocional del contenido")
 
-    @field_validator('sentiment', mode='before')
+    @field_validator("sentiment", mode="before")
     @classmethod
     def normalize_sentiment(cls, v):
         """
@@ -72,7 +70,7 @@ class CopyMetadata(BaseModel):
             "inspirational",
             "controversial",
             "relatable",
-            "storytelling"
+            "storytelling",
         ]
 
         # Si es válido, retornar directo
@@ -85,7 +83,7 @@ class CopyMetadata(BaseModel):
                 return valid
 
         # Si no matchea nada, intentar con la primera palabra
-        first_word = v.split('_')[0]
+        first_word = v.split("_")[0]
         if first_word in valid_sentiments:
             return first_word
 
@@ -95,24 +93,21 @@ class CopyMetadata(BaseModel):
     sentiment_score: float = Field(
         ge=0.0,  # ge = greater or equal (>=)
         le=1.0,  # le = less or equal (<=)
-        description="Intensidad emocional (0=neutro, 1=muy fuerte)"
+        description="Intensidad emocional (0=neutro, 1=muy fuerte)",
     )
 
     engagement_score: float = Field(
-        ge=1.0,
-        le=10.0,
-        description="Predicción de likes/comments/shares (1-10)"
+        ge=1.0, le=10.0, description="Predicción de likes/comments/shares (1-10)"
     )
 
     suggested_thumbnail_timestamp: float = Field(
-        ge=0.0,
-        description="Segundo exacto del clip ideal para thumbnail"
+        ge=0.0, description="Segundo exacto del clip ideal para thumbnail"
     )
 
-    primary_topics: List[str] = Field(
+    primary_topics: list[str] = Field(
         min_length=2,  # Mínimo 2 topics (relajado para tolerar duplicados)
         max_length=10,  # Máximo 10 (se truncará a 5 en el validador)
-        description="Temas principales del clip"
+        description="Temas principales del clip",
     )
 
     hook_strength: Literal["very_high", "high", "medium", "low"] = Field(
@@ -120,13 +115,11 @@ class CopyMetadata(BaseModel):
     )
 
     viral_potential: float = Field(
-        ge=1.0,
-        le=10.0,
-        description="Probabilidad de volverse viral (1-10)"
+        ge=1.0, le=10.0, description="Probabilidad de volverse viral (1-10)"
     )
 
     # Validador custom: primary_topics no debe tener duplicados y máximo 5
-    @field_validator('primary_topics')
+    @field_validator("primary_topics")
     @classmethod
     def topics_must_be_unique_and_limited(cls, v):
         """
@@ -158,6 +151,7 @@ class CopyMetadata(BaseModel):
 # COPY COMPLETO DE UN CLIP
 # ============================================================================
 
+
 class ClipCopy(BaseModel):
     """
     Copy/caption completo para un clip.
@@ -174,23 +168,21 @@ class ClipCopy(BaseModel):
 
     clip_id: int = Field(
         ge=1,
-        description="ID del clip (1, 2, 3, ...) - corresponde al archivo {clip_id}.mp4"
+        description="ID del clip (1, 2, 3, ...) - corresponde al archivo {clip_id}.mp4",
     )
 
     copy: str = Field(
-        min_length=20,   # Muy corto = poco contexto
+        min_length=20,  # Muy corto = poco contexto
         max_length=200,  # Permisivo (se ajustará en validador)
-        description="Caption completo con hashtags integrados"
+        description="Caption completo con hashtags integrados",
     )
 
-    metadata: CopyMetadata = Field(
-        description="Análisis predictivo del clip"
-    )
+    metadata: CopyMetadata = Field(description="Análisis predictivo del clip")
 
     # Validador 1: Truncar inteligentemente si > 150 chars
     # Validador 2: copy debe tener al menos 1 hashtag
     # Validador 3: copy DEBE incluir #AICDMX (branding obligatorio)
-    @field_validator('copy', mode='before')
+    @field_validator("copy", mode="before")
     @classmethod
     def truncate_and_validate_copy(cls, v):
         """
@@ -212,29 +204,29 @@ class ClipCopy(BaseModel):
         # Si cabe, validar y retornar
         if len(v) <= 150:
             # Validar hashtags
-            if '#' not in v:
-                raise ValueError('Copy must contain at least one hashtag')
-            if '#AICDMX' not in v.upper():
-                raise ValueError('Copy must include #AICDMX hashtag for branding')
+            if "#" not in v:
+                raise ValueError("Copy must contain at least one hashtag")
+            if "#AICDMX" not in v.upper():
+                raise ValueError("Copy must include #AICDMX hashtag for branding")
             return v
 
         # Si es muy largo, truncar inteligentemente
         # Estrategia: Eliminar segundo hashtag (que NO sea AICDMX)
 
         # Encontrar todos los hashtags
-        hashtags = re.findall(r'#\w+', v)
+        hashtags = re.findall(r"#\w+", v)
 
         # Identificar hashtags que NO son AICDMX
-        other_hashtags = [h for h in hashtags if h.upper() != '#AICDMX']
+        other_hashtags = [h for h in hashtags if h.upper() != "#AICDMX"]
 
         # Si hay más de un hashtag además de AICDMX, eliminar el último
         if len(other_hashtags) > 0:
             # Eliminar el último hashtag que NO sea AICDMX
             last_other = other_hashtags[-1]
-            v_truncated = v.replace(last_other, '').strip()
+            v_truncated = v.replace(last_other, "").strip()
 
             # Limpiar espacios dobles
-            v_truncated = re.sub(r'\s+', ' ', v_truncated)
+            v_truncated = re.sub(r"\s+", " ", v_truncated)
 
             # Si ahora cabe, retornar
             if len(v_truncated) <= 150:
@@ -242,20 +234,20 @@ class ClipCopy(BaseModel):
 
         # Si aún no cabe, truncar a 147 chars y agregar "..."
         # Asegurarnos de que #AICDMX esté presente
-        if '#AICDMX' in v.upper():
+        if "#AICDMX" in v.upper():
             # Buscar posición de #AICDMX
-            aicdmx_pos = v.upper().find('#AICDMX')
+            aicdmx_pos = v.upper().find("#AICDMX")
 
             # Si #AICDMX está cerca del final, mantenerlo
             if aicdmx_pos > 130:
                 # Truncar antes de AICDMX y agregar
-                v = v[:aicdmx_pos].strip() + ' #AICDMX'
+                v = v[:aicdmx_pos].strip() + " #AICDMX"
             else:
                 # Truncar a 147 chars y verificar que AICDMX esté
-                v = v[:147] + '...'
-                if '#AICDMX' not in v.upper():
+                v = v[:147] + "..."
+                if "#AICDMX" not in v.upper():
                     # Reemplazar último hashtag con AICDMX
-                    v = re.sub(r'#\w+(?!.*#\w+)', '#AICDMX', v)
+                    v = re.sub(r"#\w+(?!.*#\w+)", "#AICDMX", v)
 
         return v[:150]  # Garantizar que nunca exceda 150
 
@@ -263,6 +255,7 @@ class ClipCopy(BaseModel):
 # ============================================================================
 # OUTPUT COMPLETO DE GEMINI
 # ============================================================================
+
 
 class CopysOutput(BaseModel):
     """
@@ -286,9 +279,9 @@ class CopysOutput(BaseModel):
     }
     """
 
-    clips: List[ClipCopy] = Field(
+    clips: list[ClipCopy] = Field(
         min_length=1,  # Al menos 1 clip
-        description="Lista de todos los clips con sus copies"
+        description="Lista de todos los clips con sus copies",
     )
 
     class Config:
@@ -300,6 +293,7 @@ class CopysOutput(BaseModel):
         - Gemini ve EXACTAMENTE cómo debe formatear la respuesta
         - Es como darle la "plantilla del examen"
         """
+
         json_schema_extra = {
             "example": {
                 "clips": [
@@ -313,8 +307,8 @@ class CopysOutput(BaseModel):
                             "suggested_thumbnail_timestamp": 12.5,
                             "primary_topics": ["meetups", "Q&A", "community"],
                             "hook_strength": "high",
-                            "viral_potential": 7.8
-                        }
+                            "viral_potential": 7.8,
+                        },
                     }
                 ]
             }
@@ -324,6 +318,7 @@ class CopysOutput(BaseModel):
 # ============================================================================
 # WRAPPER FINAL PARA GUARDAR EN JSON
 # ============================================================================
+
 
 class SavedCopys(BaseModel):
     """
@@ -345,32 +340,21 @@ class SavedCopys(BaseModel):
         description="Timestamp de cuándo se generaron los copies"
     )
 
-    model: str = Field(
-        description="Modelo usado: gemini-2.5-flash o gemini-2.5-pro"
-    )
+    model: str = Field(description="Modelo usado: gemini-2.5-flash o gemini-2.5-pro")
 
-    total_clips: int = Field(
-        ge=1,
-        description="Cantidad total de clips procesados"
-    )
+    total_clips: int = Field(ge=1, description="Cantidad total de clips procesados")
 
-    style: str = Field(
-        description="Estilo usado: viral, educational, storytelling"
-    )
+    style: str = Field(description="Estilo usado: viral, educational, storytelling")
 
     average_engagement: float = Field(
-        ge=0.0,
-        le=10.0,
-        description="Engagement score promedio de todos los clips"
+        ge=0.0, le=10.0, description="Engagement score promedio de todos los clips"
     )
 
     average_viral_potential: float = Field(
-        ge=0.0,
-        le=10.0,
-        description="Viral potential promedio de todos los clips"
+        ge=0.0, le=10.0, description="Viral potential promedio de todos los clips"
     )
 
-    clips: List[ClipCopy] = Field(
+    clips: list[ClipCopy] = Field(
         description="Array completo de clips con copies y metadata"
     )
 
@@ -383,14 +367,14 @@ class SavedCopys(BaseModel):
         - Este encoder convierte datetime a ISO string automáticamente
         - Resultado: "2025-10-26T11:30:00" en el JSON
         """
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 def calculate_averages(copies_output: CopysOutput) -> tuple[float, float]:
     """
@@ -415,17 +399,11 @@ def calculate_averages(copies_output: CopysOutput) -> tuple[float, float]:
 
     count = len(copies_output.clips)
 
-    return (
-        round(total_engagement / count, 2),
-        round(total_viral / count, 2)
-    )
+    return (round(total_engagement / count, 2), round(total_viral / count, 2))
 
 
 def create_saved_copys(
-    video_id: str,
-    model: str,
-    style: str,
-    copies_output: CopysOutput
+    video_id: str, model: str, style: str, copies_output: CopysOutput
 ) -> SavedCopys:
     """
     Convierte CopysOutput (de Gemini) a SavedCopys (para guardar).
@@ -454,5 +432,5 @@ def create_saved_copys(
         style=style,
         average_engagement=avg_engagement,
         average_viral_potential=avg_viral,
-        clips=copies_output.clips
+        clips=copies_output.clips,
     )

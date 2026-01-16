@@ -5,11 +5,13 @@ Propósito: Validar que FFmpeg subprocess resuelve el problema de VideoWriter
 """
 
 from pathlib import Path
+
 from src.reframer import FaceReframer
-from loguru import logger
 
 # Setup
-video_path = Path("downloads/Storycraft in the Age of AI, Danny Headspace - AI CDMX Live Stream_LZlXASa8CZM.mp4")
+video_path = Path(
+    "downloads/Storycraft in the Age of AI, Danny Headspace - AI CDMX Live Stream_LZlXASa8CZM.mp4"
+)
 output_path = Path("tests/test_ffmpeg_output.mp4")
 
 if not video_path.exists():
@@ -32,7 +34,7 @@ try:
         frame_sample_rate=3,
         strategy="keep_in_frame",
         safe_zone_margin=0.15,
-        min_detection_confidence=0.5
+        min_detection_confidence=0.5,
     )
 
     print("Procesando clip de 10 segundos (30-40s) con face tracking...")
@@ -44,7 +46,7 @@ try:
         output_path=str(output_path),
         target_resolution=(1080, 1920),
         start_time=30.0,  # Segundo 30
-        end_time=40.0     # 10 segundos
+        end_time=40.0,  # 10 segundos
     )
 
     print()
@@ -75,5 +77,6 @@ except Exception as e:
     print("=" * 70)
     print(f"Error: {e}")
     import traceback
+
     traceback.print_exc()
     exit(1)

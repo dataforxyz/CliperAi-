@@ -1,13 +1,20 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    TypeVar,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 T = TypeVar("T")
 
 
-def _validate_type(value: Any, expected_type: Type[T]) -> T:
+def _validate_type(value: Any, expected_type: type[T]) -> T:
     """
     Small compatibility wrapper for pydantic v1/v2 typed validation.
     """
@@ -37,7 +44,7 @@ def _validate_type(value: Any, expected_type: Type[T]) -> T:
 
     # Fallback when pydantic isn't available (e.g., minimal TUI env).
     if expected_type is str:
-        return ("" if value is None else str(value))  # type: ignore[return-value]
+        return "" if value is None else str(value)  # type: ignore[return-value]
     if expected_type is bool:
         if isinstance(value, bool):
             return value  # type: ignore[return-value]
@@ -72,12 +79,12 @@ class SettingDefinition:
     key: str
     group: str
     label: str
-    python_type: Type[Any]
+    python_type: type[Any]
     default: Any
     help_text: str = ""
     placeholder: str = ""
     is_secret: bool = False
-    normalize: Optional[Callable[[Any], Any]] = None
+    normalize: Callable[[Any], Any] | None = None
 
     def validate_and_normalize(self, value: Any) -> Any:
         typed = _validate_type(value, self.python_type)
@@ -120,14 +127,20 @@ class SettingDefinition:
 def _normalize_logo_path(value: str) -> str:
     from pathlib import Path
 
-    from src.utils.logo import DEFAULT_BUILTIN_LOGO_PATH, coerce_logo_file, normalize_logo_setting_value
+    from src.utils.logo import (
+        DEFAULT_BUILTIN_LOGO_PATH,
+        coerce_logo_file,
+        normalize_logo_setting_value,
+    )
 
     candidate = (value or "").strip() or DEFAULT_BUILTIN_LOGO_PATH
     suffix = Path(candidate).suffix.lower()
     if suffix not in {".png", ".jpg", ".jpeg"}:
         raise ValueError("Logo must be an existing .png, .jpg, or .jpeg image file")
     if coerce_logo_file(candidate) is None:
-        raise ValueError("Logo file not found or invalid (must be an existing .png, .jpg, or .jpeg image file)")
+        raise ValueError(
+            "Logo file not found or invalid (must be an existing .png, .jpg, or .jpeg image file)"
+        )
     return normalize_logo_setting_value(candidate)
 
 
@@ -196,7 +209,9 @@ def _normalize_subtitle_color(value: str) -> str:
             return v
         except ValueError:
             pass
-    raise ValueError(f"Must be a color name ({', '.join(sorted(NAMED_COLORS))}) or #RRGGBB hex code")
+    raise ValueError(
+        f"Must be a color name ({', '.join(sorted(NAMED_COLORS))}) or #RRGGBB hex code"
+    )
 
 
 def _normalize_font_size(value: int) -> int:
@@ -232,7 +247,9 @@ def _normalize_aspect_ratio(value: str) -> str:
         return ""  # None/original
     allowed = {"16:9", "9:16", "1:1", "4:3", "3:4"}
     if v not in allowed:
-        raise ValueError(f"Must be one of: {', '.join(sorted(allowed))} or blank for original")
+        raise ValueError(
+            f"Must be one of: {', '.join(sorted(allowed))} or blank for original"
+        )
     return v
 
 
@@ -258,7 +275,9 @@ def _normalize_sample_rate(value: int) -> int:
 def _normalize_ffmpeg_threads(value: int) -> int:
     # 0 = auto-detect, positive = specific thread count, negative = all minus N
     if value < -16 or value > 64:
-        raise ValueError("Threads must be between -16 and 64 (0=auto, negative=all minus N)")
+        raise ValueError(
+            "Threads must be between -16 and 64 (0=auto, negative=all minus N)"
+        )
     return value
 
 
@@ -295,8 +314,8 @@ def _normalize_output_dir(value: str) -> str:
     - Creates directory if it doesn't exist
     - Validates writability
     """
-    from pathlib import Path
     import os
+    from pathlib import Path
 
     path_str = (value or "").strip() or "output/"
     path = Path(path_str)
@@ -319,16 +338,34 @@ def _normalize_output_dir(value: str) -> str:
     return str(path)
 
 
-APP_SETTING_GROUPS: Tuple[SettingGroup, ...] = (
-    SettingGroup(key="branding", title="Branding", description="Logo and watermark settings."),
-    SettingGroup(key="clip_generation", title="Clip Generation", description="Duration and trimming settings for clip detection."),
-    SettingGroup(key="subtitles", title="Subtitles", description="Subtitle styling and formatting."),
-    SettingGroup(key="export", title="Export", description="Video export quality and processing options."),
-    SettingGroup(key="output", title="Output", description="Video naming and output directory settings."),
+APP_SETTING_GROUPS: tuple[SettingGroup, ...] = (
+    SettingGroup(
+        key="branding", title="Branding", description="Logo and watermark settings."
+    ),
+    SettingGroup(
+        key="clip_generation",
+        title="Clip Generation",
+        description="Duration and trimming settings for clip detection.",
+    ),
+    SettingGroup(
+        key="subtitles",
+        title="Subtitles",
+        description="Subtitle styling and formatting.",
+    ),
+    SettingGroup(
+        key="export",
+        title="Export",
+        description="Video export quality and processing options.",
+    ),
+    SettingGroup(
+        key="output",
+        title="Output",
+        description="Video naming and output directory settings.",
+    ),
 )
 
 
-APP_SETTINGS: Tuple[SettingDefinition, ...] = (
+APP_SETTINGS: tuple[SettingDefinition, ...] = (
     # --- Branding settings ---
     SettingDefinition(
         key="logo_path",
@@ -642,18 +679,20 @@ def iter_app_settings() -> Sequence[SettingDefinition]:
     return list(APP_SETTINGS)
 
 
-def get_app_setting_definition(key: str) -> Optional[SettingDefinition]:
+def get_app_setting_definition(key: str) -> SettingDefinition | None:
     for setting in APP_SETTINGS:
         if setting.key == key:
             return setting
     return None
 
 
-def get_app_settings_defaults() -> Dict[str, Any]:
+def get_app_settings_defaults() -> dict[str, Any]:
     return {s.key: s.default for s in APP_SETTINGS}
 
 
-def validate_and_normalize_app_settings(settings: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str]]:
+def validate_and_normalize_app_settings(
+    settings: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, str]]:
     """
     Validates known keys and returns:
     - validated settings dict with schema defaults merged
@@ -661,24 +700,26 @@ def validate_and_normalize_app_settings(settings: Dict[str, Any]) -> Tuple[Dict[
 
     Unknown keys are preserved as-is.
     """
-    merged: Dict[str, Any] = dict(get_app_settings_defaults())
+    merged: dict[str, Any] = dict(get_app_settings_defaults())
     merged.update(settings or {})
 
-    errors: Dict[str, str] = {}
+    errors: dict[str, str] = {}
     for definition in APP_SETTINGS:
         if definition.key not in merged:
             merged[definition.key] = definition.default
             continue
         try:
-            merged[definition.key] = definition.validate_and_normalize(merged.get(definition.key))
+            merged[definition.key] = definition.validate_and_normalize(
+                merged.get(definition.key)
+            )
         except Exception as e:
             errors[definition.key] = str(e).strip() or "Invalid value"
             merged[definition.key] = definition.default
     return merged, errors
 
 
-def list_app_settings_by_group() -> Dict[str, List[SettingDefinition]]:
-    grouped: Dict[str, List[SettingDefinition]] = {}
+def list_app_settings_by_group() -> dict[str, list[SettingDefinition]]:
+    grouped: dict[str, list[SettingDefinition]] = {}
     for definition in APP_SETTINGS:
         grouped.setdefault(definition.group, []).append(definition)
     return grouped
@@ -687,7 +728,7 @@ def list_app_settings_by_group() -> Dict[str, List[SettingDefinition]]:
 # --- Custom subtitle style helpers ---
 
 # ASS color format: &H00BBGGRR (alpha, blue, green, red)
-COLOR_MAP: Dict[str, str] = {
+COLOR_MAP: dict[str, str] = {
     "yellow": "&H0000FFFF",
     "white": "&H00FFFFFF",
     "black": "&H00000000",
@@ -707,7 +748,7 @@ def _hex_to_ass_color(hex_color: str) -> str:
     return f"&H00{b:02X}{g:02X}{r:02X}"
 
 
-def build_custom_subtitle_style(settings: Dict[str, Any]) -> Dict[str, str]:
+def build_custom_subtitle_style(settings: dict[str, Any]) -> dict[str, str]:
     """
     Build an ffmpeg subtitle style dict from settings.
 
@@ -745,7 +786,7 @@ def build_custom_subtitle_style(settings: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
-def get_effective_subtitle_style(settings: Dict[str, Any]) -> str:
+def get_effective_subtitle_style(settings: dict[str, Any]) -> str:
     """
     Returns either the preset name or '__custom__' to signal custom mode.
     """

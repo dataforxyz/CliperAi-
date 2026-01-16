@@ -5,8 +5,8 @@ Diagnóstico de subtítulos duplicados
 Este script ayuda a diagnosticar por qué aparecen subtítulos duplicados
 (amarillos con estilo + blancos sin estilo).
 """
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 def check_srt_file(srt_path: str):
@@ -21,15 +21,15 @@ def check_srt_file(srt_path: str):
         print(f"❌ ERROR: Archivo no encontrado: {srt_path}")
         return
 
-    with open(srt_path, 'r', encoding='utf-8') as f:
+    with open(srt_path, encoding="utf-8") as f:
         content = f.read()
 
-    lines = content.split('\n')
+    lines = content.split("\n")
 
-    print(f"📊 ESTADÍSTICAS:")
+    print("📊 ESTADÍSTICAS:")
     print(f"  - Total líneas: {len(lines)}")
     print(f"  - Total caracteres: {len(content)}")
-    print(f"  - Encoding: utf-8")
+    print("  - Encoding: utf-8")
     print()
 
     # Contar entradas SRT (números de subtítulo)
@@ -38,11 +38,11 @@ def check_srt_file(srt_path: str):
     print()
 
     # Detectar duplicados (mismo timestamp)
-    timestamps = [line for line in lines if '-->' in line]
+    timestamps = [line for line in lines if "-->" in line]
     timestamp_set = set(timestamps)
 
     if len(timestamps) != len(timestamp_set):
-        print(f"⚠️  PROBLEMA DETECTADO: Timestamps duplicados")
+        print("⚠️  PROBLEMA DETECTADO: Timestamps duplicados")
         print(f"  - Total timestamps: {len(timestamps)}")
         print(f"  - Timestamps únicos: {len(timestamp_set)}")
         print(f"  - Duplicados: {len(timestamps) - len(timestamp_set)}")
@@ -58,32 +58,34 @@ def check_srt_file(srt_path: str):
                 seen.add(ts)
 
         if duplicates:
-            print(f"  Timestamps duplicados:")
+            print("  Timestamps duplicados:")
             for dup in duplicates[:5]:  # Mostrar solo primeros 5
                 print(f"    - {dup}")
             if len(duplicates) > 5:
                 print(f"    ... y {len(duplicates) - 5} más")
     else:
-        print(f"✓ No hay timestamps duplicados")
+        print("✓ No hay timestamps duplicados")
 
     print()
 
     # Detectar metadata ASS/SSA (puede causar renderizado dual)
-    has_ass_metadata = any('[Script Info]' in line or '[V4+ Styles]' in line for line in lines)
+    has_ass_metadata = any(
+        "[Script Info]" in line or "[V4+ Styles]" in line for line in lines
+    )
     if has_ass_metadata:
-        print(f"⚠️  PROBLEMA DETECTADO: Metadata ASS/SSA encontrada")
-        print(f"  El archivo tiene metadata de Advanced SubStation Alpha.")
-        print(f"  Esto puede causar que FFmpeg renderice subtítulos dos veces:")
-        print(f"    1. Una vez con estilo ASS (blanco por defecto)")
-        print(f"    2. Otra vez con force_style (amarillo)")
+        print("⚠️  PROBLEMA DETECTADO: Metadata ASS/SSA encontrada")
+        print("  El archivo tiene metadata de Advanced SubStation Alpha.")
+        print("  Esto puede causar que FFmpeg renderice subtítulos dos veces:")
+        print("    1. Una vez con estilo ASS (blanco por defecto)")
+        print("    2. Otra vez con force_style (amarillo)")
         print()
     else:
-        print(f"✓ No hay metadata ASS/SSA")
+        print("✓ No hay metadata ASS/SSA")
 
     print()
 
     # Mostrar primeras 3 entradas para inspección visual
-    print(f"📄 PRIMERAS 3 ENTRADAS:")
+    print("📄 PRIMERAS 3 ENTRADAS:")
     print(f"{'-'*80}")
 
     entry_count = 0
@@ -92,7 +94,7 @@ def check_srt_file(srt_path: str):
     for line in lines:
         if line.strip().isdigit() and current_entry:
             # Nueva entrada encontrada
-            print('\n'.join(current_entry))
+            print("\n".join(current_entry))
             print()
             entry_count += 1
             current_entry = [line]
@@ -104,21 +106,23 @@ def check_srt_file(srt_path: str):
 
     # Mostrar última entrada si no llegamos a 3
     if entry_count < 3 and current_entry:
-        print('\n'.join(current_entry))
+        print("\n".join(current_entry))
 
     print(f"{'-'*80}\n")
 
     # Recomendaciones
-    print(f"💡 RECOMENDACIONES:")
+    print("💡 RECOMENDACIONES:")
     if len(timestamps) != len(timestamp_set):
-        print(f"  1. El archivo SRT tiene duplicados - regenerar con subtitle_generator")
+        print(
+            "  1. El archivo SRT tiene duplicados - regenerar con subtitle_generator"
+        )
     elif has_ass_metadata:
-        print(f"  1. Remover metadata ASS/SSA del archivo")
-        print(f"  2. Usar formato SRT puro sin estilos embebidos")
+        print("  1. Remover metadata ASS/SSA del archivo")
+        print("  2. Usar formato SRT puro sin estilos embebidos")
     else:
-        print(f"  1. El archivo SRT parece correcto")
-        print(f"  2. El problema puede estar en el comando FFmpeg")
-        print(f"  3. Revisar logs para ver comando FFmpeg ejecutado")
+        print("  1. El archivo SRT parece correcto")
+        print("  2. El problema puede estar en el comando FFmpeg")
+        print("  3. Revisar logs para ver comando FFmpeg ejecutado")
 
     print()
 
@@ -128,7 +132,7 @@ def generate_test_command():
     Genera comando FFmpeg de prueba para validar subtítulos
     """
     print(f"\n{'='*80}")
-    print(f"COMANDO DE PRUEBA - FFmpeg con Subtítulos")
+    print("COMANDO DE PRUEBA - FFmpeg con Subtítulos")
     print(f"{'='*80}\n")
 
     print("Para validar que el filtro de subtítulos funciona correctamente,")

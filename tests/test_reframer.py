@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for the FaceReframer class in src/reframer.py
 
@@ -13,9 +12,7 @@ Covers:
 """
 
 import sys
-import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,20 +22,22 @@ import pytest
 # Create mock loguru logger
 _mock_loguru = MagicMock()
 _mock_loguru.logger = MagicMock()
-sys.modules['loguru'] = _mock_loguru
+sys.modules["loguru"] = _mock_loguru
 
 
 @pytest.fixture
 def mock_numpy():
     """Create a mock numpy module with required functionality."""
     mock_np = MagicMock()
-    mock_np.zeros = MagicMock(return_value=MagicMock(
-        shape=(1920, 1080, 3),
-        dtype='uint8',
-        flags={'C_CONTIGUOUS': True},
-        tobytes=MagicMock(return_value=b'\x00' * (1920 * 1080 * 3))
-    ))
-    mock_np.uint8 = 'uint8'
+    mock_np.zeros = MagicMock(
+        return_value=MagicMock(
+            shape=(1920, 1080, 3),
+            dtype="uint8",
+            flags={"C_CONTIGUOUS": True},
+            tobytes=MagicMock(return_value=b"\x00" * (1920 * 1080 * 3)),
+        )
+    )
+    mock_np.uint8 = "uint8"
     mock_np.ascontiguousarray = MagicMock(side_effect=lambda x: x)
     mock_np.ndarray = MagicMock
     return mock_np
@@ -121,13 +120,18 @@ def mock_detection_multiple_faces():
 class TestFFmpegVideoWriter:
     """Tests for the FFmpegVideoWriter helper class."""
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_init_success(self, mock_popen, mock_numpy):
         """Test successful initialization of FFmpegVideoWriter."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': mock_numpy, 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": mock_numpy, "mediapipe": MagicMock()},
+        ):
             # Need to reload to pick up mocks
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_process = MagicMock()
@@ -135,10 +139,7 @@ class TestFFmpegVideoWriter:
             mock_popen.return_value = mock_process
 
             writer = reframer_module.FFmpegVideoWriter(
-                output_path="/tmp/test.mp4",
-                width=1080,
-                height=1920,
-                fps=30.0
+                output_path="/tmp/test.mp4", width=1080, height=1920, fps=30.0
             )
 
             assert writer.isOpened()
@@ -146,12 +147,17 @@ class TestFFmpegVideoWriter:
             assert writer.height == 1920
             assert writer.fps == 30.0
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_init_custom_params(self, mock_popen, mock_numpy):
         """Test initialization with custom codec, preset, and crf."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': mock_numpy, 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": mock_numpy, "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_process = MagicMock()
@@ -163,39 +169,46 @@ class TestFFmpegVideoWriter:
                 width=720,
                 height=1280,
                 fps=24.0,
-                codec='h264_videotoolbox',
-                preset='medium',
-                crf=18
+                codec="h264_videotoolbox",
+                preset="medium",
+                crf=18,
             )
 
             assert writer.isOpened()
-            assert writer.codec == 'h264_videotoolbox'
+            assert writer.codec == "h264_videotoolbox"
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_init_failure(self, mock_popen, mock_numpy):
         """Test initialization failure handling."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': mock_numpy, 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": mock_numpy, "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_popen.side_effect = OSError("FFmpeg not found")
 
             writer = reframer_module.FFmpegVideoWriter(
-                output_path="/tmp/test.mp4",
-                width=1080,
-                height=1920,
-                fps=30.0
+                output_path="/tmp/test.mp4", width=1080, height=1920, fps=30.0
             )
 
             assert not writer.isOpened()
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_write_success(self, mock_popen, mock_numpy):
         """Test successful frame write."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': mock_numpy, 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": mock_numpy, "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_process = MagicMock()
@@ -204,25 +217,27 @@ class TestFFmpegVideoWriter:
             mock_popen.return_value = mock_process
 
             writer = reframer_module.FFmpegVideoWriter(
-                output_path="/tmp/test.mp4",
-                width=1080,
-                height=1920,
-                fps=30.0
+                output_path="/tmp/test.mp4", width=1080, height=1920, fps=30.0
             )
 
             mock_frame = MagicMock()
-            mock_frame.tobytes.return_value = b'\x00' * (1080 * 1920 * 3)
+            mock_frame.tobytes.return_value = b"\x00" * (1080 * 1920 * 3)
 
             result = writer.write(mock_frame)
             assert result is True
             mock_process.stdin.write.assert_called_once()
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_write_broken_pipe(self, mock_popen, mock_numpy):
         """Test write failure due to broken pipe."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': mock_numpy, 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": mock_numpy, "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_process = MagicMock()
@@ -231,25 +246,27 @@ class TestFFmpegVideoWriter:
             mock_popen.return_value = mock_process
 
             writer = reframer_module.FFmpegVideoWriter(
-                output_path="/tmp/test.mp4",
-                width=1080,
-                height=1920,
-                fps=30.0
+                output_path="/tmp/test.mp4", width=1080, height=1920, fps=30.0
             )
 
             mock_frame = MagicMock()
-            mock_frame.tobytes.return_value = b'\x00' * (1080 * 1920 * 3)
+            mock_frame.tobytes.return_value = b"\x00" * (1080 * 1920 * 3)
 
             result = writer.write(mock_frame)
             assert result is False
             assert not writer._opened
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_release(self, mock_popen, mock_numpy):
         """Test clean release of writer resources."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': mock_numpy, 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": mock_numpy, "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_process = MagicMock()
@@ -258,10 +275,7 @@ class TestFFmpegVideoWriter:
             mock_popen.return_value = mock_process
 
             writer = reframer_module.FFmpegVideoWriter(
-                output_path="/tmp/test.mp4",
-                width=1080,
-                height=1920,
-                fps=30.0
+                output_path="/tmp/test.mp4", width=1080, height=1920, fps=30.0
             )
 
             writer.release()
@@ -281,9 +295,14 @@ class TestFaceReframerInit:
 
     def test_init_default_parameters(self):
         """Test initialization with default parameters."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             # Mock the MediaPipe face detection
@@ -300,9 +319,14 @@ class TestFaceReframerInit:
 
     def test_init_custom_parameters(self):
         """Test initialization with custom parameters."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -313,7 +337,7 @@ class TestFaceReframerInit:
                 frame_sample_rate=5,
                 strategy="centered",
                 safe_zone_margin=0.20,
-                min_detection_confidence=0.7
+                min_detection_confidence=0.7,
             )
 
             assert reframer.frame_sample_rate == 5
@@ -322,9 +346,14 @@ class TestFaceReframerInit:
 
     def test_init_mediapipe_configuration(self):
         """Test that MediaPipe is configured with correct model_selection."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -332,19 +361,18 @@ class TestFaceReframerInit:
             mock_detector_instance = MagicMock()
             mock_face_detection.FaceDetection.return_value = mock_detector_instance
 
-            reframer = reframer_module.FaceReframer(min_detection_confidence=0.6)
+            reframer_module.FaceReframer(min_detection_confidence=0.6)
 
             # Verify FaceDetection was called with model_selection=1 (full-range)
             mock_face_detection.FaceDetection.assert_called_once_with(
-                model_selection=1,
-                min_detection_confidence=0.6
+                model_selection=1, min_detection_confidence=0.6
             )
 
     def test_init_missing_dependencies_raises_error(self):
         """Test that ModuleNotFoundError is raised when dependencies are missing."""
         # Simulate missing dependencies by setting cv2 to None
-        with patch.dict('sys.modules', {'cv2': None, 'numpy': None, 'mediapipe': None}):
-            import importlib
+        with patch.dict("sys.modules", {"cv2": None, "numpy": None, "mediapipe": None}):
+
             import src.reframer as reframer_module
 
             # Force reload with None dependencies
@@ -369,9 +397,14 @@ class TestDetectLargestFace:
 
     def test_detect_single_face(self, mock_detection_single_face):
         """Test detection of a single face returns correct coordinates."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -397,16 +430,21 @@ class TestDetectLargestFace:
 
             assert face is not None
             # With relative coords xmin=0.4, width=0.2 on 1920px frame
-            assert face['x'] == int(0.4 * 1920)  # 768
-            assert face['width'] == int(0.2 * 1920)  # 384
-            assert 'center_x' in face
-            assert 'center_y' in face
+            assert face["x"] == int(0.4 * 1920)  # 768
+            assert face["width"] == int(0.2 * 1920)  # 384
+            assert "center_x" in face
+            assert "center_y" in face
 
     def test_detect_multiple_faces_returns_largest(self, mock_detection_multiple_faces):
         """Test that with multiple faces, the largest one is selected."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -430,16 +468,21 @@ class TestDetectLargestFace:
 
             assert face is not None
             # Large face has xmin=0.35, width=0.3 (largest area)
-            assert face['x'] == int(0.35 * 1920)  # 672
-            assert face['width'] == int(0.3 * 1920)  # 576
+            assert face["x"] == int(0.35 * 1920)  # 672
+            assert face["width"] == int(0.3 * 1920)  # 576
             # Verify it's the large face by area (0.3 * 0.4 = 0.12, largest)
-            assert face['height'] == int(0.4 * 1080)  # 432
+            assert face["height"] == int(0.4 * 1080)  # 432
 
     def test_detect_no_faces_returns_none(self):
         """Test that None is returned when no faces are detected."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -465,9 +508,14 @@ class TestDetectLargestFace:
 
     def test_detect_empty_detections_returns_none(self):
         """Test that None is returned when detections list is empty."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -502,9 +550,14 @@ class TestCalculateCropKeepInFrame:
 
     def test_first_frame_centers_face(self):
         """Test that first frame centers the face in the crop."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -516,7 +569,7 @@ class TestCalculateCropKeepInFrame:
             # last_crop_x is None initially (first frame)
             assert reframer.last_crop_x is None
 
-            face = {'center_x': 960, 'center_y': 540}  # Center of 1920x1080
+            face = {"center_x": 960, "center_y": 540}  # Center of 1920x1080
             frame_width = 1920
             frame_height = 1080
             target_width = 1080
@@ -532,9 +585,14 @@ class TestCalculateCropKeepInFrame:
 
     def test_face_within_safe_zone_no_movement(self):
         """Test that crop doesn't move when face is within safe zone."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -542,8 +600,7 @@ class TestCalculateCropKeepInFrame:
             mock_face_detection.FaceDetection.return_value = MagicMock()
 
             reframer = reframer_module.FaceReframer(
-                strategy="keep_in_frame",
-                safe_zone_margin=0.15
+                strategy="keep_in_frame", safe_zone_margin=0.15
             )
 
             # Set initial crop position
@@ -554,7 +611,7 @@ class TestCalculateCropKeepInFrame:
             target_height = 1920
 
             # Face center at crop_x + 540 = 940 (center of safe zone)
-            face = {'center_x': 940, 'center_y': 540}
+            face = {"center_x": 940, "center_y": 540}
 
             crop_x = reframer._calculate_crop_keep_in_frame(
                 face, frame_width, frame_height, target_width, target_height
@@ -565,9 +622,14 @@ class TestCalculateCropKeepInFrame:
 
     def test_face_exits_left_boundary_crop_moves(self):
         """Test that crop moves left when face exits left safe zone boundary."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -575,8 +637,7 @@ class TestCalculateCropKeepInFrame:
             mock_face_detection.FaceDetection.return_value = MagicMock()
 
             reframer = reframer_module.FaceReframer(
-                strategy="keep_in_frame",
-                safe_zone_margin=0.15
+                strategy="keep_in_frame", safe_zone_margin=0.15
             )
 
             reframer.last_crop_x = 500
@@ -589,7 +650,7 @@ class TestCalculateCropKeepInFrame:
             # face_x_in_crop = face_center_x - last_crop_x
             # For face to be outside left boundary: face_x_in_crop < 162
             # If last_crop_x = 500, face at 600: face_x_in_crop = 100 < 162
-            face = {'center_x': 600, 'center_y': 540}
+            face = {"center_x": 600, "center_y": 540}
 
             crop_x = reframer._calculate_crop_keep_in_frame(
                 face, frame_width, frame_height, target_width, target_height
@@ -602,9 +663,14 @@ class TestCalculateCropKeepInFrame:
 
     def test_face_exits_right_boundary_crop_moves(self):
         """Test that crop moves right when face exits right safe zone boundary."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -612,8 +678,7 @@ class TestCalculateCropKeepInFrame:
             mock_face_detection.FaceDetection.return_value = MagicMock()
 
             reframer = reframer_module.FaceReframer(
-                strategy="keep_in_frame",
-                safe_zone_margin=0.15
+                strategy="keep_in_frame", safe_zone_margin=0.15
             )
 
             reframer.last_crop_x = 200
@@ -626,7 +691,7 @@ class TestCalculateCropKeepInFrame:
             # face_x_in_crop = face_center_x - last_crop_x
             # For face to be outside right boundary: face_x_in_crop > 918
             # If last_crop_x = 200, face at 1200: face_x_in_crop = 1000 > 918
-            face = {'center_x': 1200, 'center_y': 540}
+            face = {"center_x": 1200, "center_y": 540}
 
             crop_x = reframer._calculate_crop_keep_in_frame(
                 face, frame_width, frame_height, target_width, target_height
@@ -639,9 +704,14 @@ class TestCalculateCropKeepInFrame:
 
     def test_crop_clamped_to_frame_boundaries(self):
         """Test that crop_x is clamped to valid frame boundaries."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -656,7 +726,7 @@ class TestCalculateCropKeepInFrame:
             target_height = 1920
 
             # Face at very left edge - would result in negative crop_x
-            face = {'center_x': 100, 'center_y': 540}
+            face = {"center_x": 100, "center_y": 540}
 
             crop_x = reframer._calculate_crop_keep_in_frame(
                 face, frame_width, frame_height, target_width, target_height
@@ -669,7 +739,7 @@ class TestCalculateCropKeepInFrame:
             reframer.last_crop_x = None
 
             # Face at very right edge - would exceed frame boundary
-            face = {'center_x': 1850, 'center_y': 540}
+            face = {"center_x": 1850, "center_y": 540}
 
             crop_x = reframer._calculate_crop_keep_in_frame(
                 face, frame_width, frame_height, target_width, target_height
@@ -690,9 +760,14 @@ class TestCalculateCropCentered:
 
     def test_centered_face_in_middle(self):
         """Test centering when face is in middle of frame."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -701,7 +776,7 @@ class TestCalculateCropCentered:
 
             reframer = reframer_module.FaceReframer(strategy="centered")
 
-            face = {'center_x': 960, 'center_y': 540}  # Center of 1920x1080
+            face = {"center_x": 960, "center_y": 540}  # Center of 1920x1080
             frame_width = 1920
             target_width = 1080
 
@@ -712,9 +787,14 @@ class TestCalculateCropCentered:
 
     def test_centered_clamped_left_boundary(self):
         """Test that crop is clamped at left boundary (0)."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -724,7 +804,7 @@ class TestCalculateCropCentered:
             reframer = reframer_module.FaceReframer(strategy="centered")
 
             # Face near left edge - would result in negative crop_x
-            face = {'center_x': 200, 'center_y': 540}
+            face = {"center_x": 200, "center_y": 540}
             frame_width = 1920
             target_width = 1080
 
@@ -735,9 +815,14 @@ class TestCalculateCropCentered:
 
     def test_centered_clamped_right_boundary(self):
         """Test that crop is clamped at right boundary."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -747,7 +832,7 @@ class TestCalculateCropCentered:
             reframer = reframer_module.FaceReframer(strategy="centered")
 
             # Face near right edge
-            face = {'center_x': 1800, 'center_y': 540}
+            face = {"center_x": 1800, "center_y": 540}
             frame_width = 1920
             target_width = 1080
 
@@ -767,9 +852,14 @@ class TestReframeVideo:
 
     def test_reframe_video_with_face_detection(self, tmp_path):
         """Test reframe_video processes frames with face detection."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             # Setup mocks
@@ -802,38 +892,44 @@ class TestReframeVideo:
 
             # Return 90 frames then stop
             frame_count = [0]
+
             def mock_read():
                 if frame_count[0] < 90:
                     frame_count[0] += 1
                     mock_frame = MagicMock()
                     mock_frame.shape = (1080, 1920, 3)
-                    mock_frame.dtype = 'uint8'
-                    mock_frame.flags = {'C_CONTIGUOUS': True}
+                    mock_frame.dtype = "uint8"
+                    mock_frame.flags = {"C_CONTIGUOUS": True}
                     return True, mock_frame
                 return False, None
+
             mock_cap.read = mock_read
 
             reframer_module.cv2.VideoCapture.return_value = mock_cap
             reframer_module.cv2.cvtColor = MagicMock(return_value=MagicMock())
-            reframer_module.cv2.resize = MagicMock(return_value=MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True},
-                __getitem__=lambda self, key: MagicMock(
+            reframer_module.cv2.resize = MagicMock(
+                return_value=MagicMock(
                     shape=(1920, 1080, 3),
-                    dtype='uint8',
-                    flags={'C_CONTIGUOUS': True}
+                    dtype="uint8",
+                    flags={"C_CONTIGUOUS": True},
+                    __getitem__=lambda self, key: MagicMock(
+                        shape=(1920, 1080, 3),
+                        dtype="uint8",
+                        flags={"C_CONTIGUOUS": True},
+                    ),
                 )
-            ))
+            )
 
             # Mock numpy
-            reframer_module.np.zeros = MagicMock(return_value=MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True},
-                tobytes=MagicMock(return_value=b'\x00' * (1920 * 1080 * 3))
-            ))
-            reframer_module.np.uint8 = 'uint8'
+            reframer_module.np.zeros = MagicMock(
+                return_value=MagicMock(
+                    shape=(1920, 1080, 3),
+                    dtype="uint8",
+                    flags={"C_CONTIGUOUS": True},
+                    tobytes=MagicMock(return_value=b"\x00" * (1920 * 1080 * 3)),
+                )
+            )
+            reframer_module.np.uint8 = "uint8"
             reframer_module.np.ascontiguousarray = lambda x: x
 
             # Mock FFmpegVideoWriter
@@ -841,7 +937,9 @@ class TestReframeVideo:
             mock_writer.isOpened.return_value = True
             mock_writer.write.return_value = True
 
-            with patch.object(reframer_module, 'FFmpegVideoWriter', return_value=mock_writer):
+            with patch.object(
+                reframer_module, "FFmpegVideoWriter", return_value=mock_writer
+            ):
                 reframer = reframer_module.FaceReframer()
 
                 input_path = tmp_path / "input.mp4"
@@ -849,9 +947,7 @@ class TestReframeVideo:
                 input_path.touch()
 
                 result = reframer.reframe_video(
-                    str(input_path),
-                    str(output_path),
-                    target_resolution=(1080, 1920)
+                    str(input_path), str(output_path), target_resolution=(1080, 1920)
                 )
 
                 assert result == str(output_path)
@@ -860,9 +956,14 @@ class TestReframeVideo:
 
     def test_reframe_video_fallback_to_center_crop(self, tmp_path):
         """Test fallback to center crop when no faces detected for 10+ frames."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -886,15 +987,17 @@ class TestReframeVideo:
             mock_cap.isOpened.return_value = True
 
             frame_count = [0]
+
             def mock_read():
                 if frame_count[0] < 60:
                     frame_count[0] += 1
                     mock_frame = MagicMock()
                     mock_frame.shape = (1080, 1920, 3)
-                    mock_frame.dtype = 'uint8'
-                    mock_frame.flags = {'C_CONTIGUOUS': True}
+                    mock_frame.dtype = "uint8"
+                    mock_frame.flags = {"C_CONTIGUOUS": True}
                     return True, mock_frame
                 return False, None
+
             mock_cap.read = mock_read
 
             reframer_module.cv2.VideoCapture.return_value = mock_cap
@@ -902,29 +1005,31 @@ class TestReframeVideo:
 
             mock_scaled = MagicMock()
             mock_scaled.shape = (1920, 1080, 3)
-            mock_scaled.dtype = 'uint8'
-            mock_scaled.flags = {'C_CONTIGUOUS': True}
+            mock_scaled.dtype = "uint8"
+            mock_scaled.flags = {"C_CONTIGUOUS": True}
             mock_scaled.__getitem__ = lambda self, key: MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True}
+                shape=(1920, 1080, 3), dtype="uint8", flags={"C_CONTIGUOUS": True}
             )
             reframer_module.cv2.resize = MagicMock(return_value=mock_scaled)
 
-            reframer_module.np.zeros = MagicMock(return_value=MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True},
-                tobytes=MagicMock(return_value=b'\x00' * (1920 * 1080 * 3))
-            ))
-            reframer_module.np.uint8 = 'uint8'
+            reframer_module.np.zeros = MagicMock(
+                return_value=MagicMock(
+                    shape=(1920, 1080, 3),
+                    dtype="uint8",
+                    flags={"C_CONTIGUOUS": True},
+                    tobytes=MagicMock(return_value=b"\x00" * (1920 * 1080 * 3)),
+                )
+            )
+            reframer_module.np.uint8 = "uint8"
             reframer_module.np.ascontiguousarray = lambda x: x
 
             mock_writer = MagicMock()
             mock_writer.isOpened.return_value = True
             mock_writer.write.return_value = True
 
-            with patch.object(reframer_module, 'FFmpegVideoWriter', return_value=mock_writer):
+            with patch.object(
+                reframer_module, "FFmpegVideoWriter", return_value=mock_writer
+            ):
                 reframer = reframer_module.FaceReframer()
 
                 input_path = tmp_path / "input.mp4"
@@ -932,9 +1037,7 @@ class TestReframeVideo:
                 input_path.touch()
 
                 result = reframer.reframe_video(
-                    str(input_path),
-                    str(output_path),
-                    target_resolution=(1080, 1920)
+                    str(input_path), str(output_path), target_resolution=(1080, 1920)
                 )
 
                 assert result == str(output_path)
@@ -942,9 +1045,14 @@ class TestReframeVideo:
 
     def test_reframe_video_with_time_range(self, tmp_path):
         """Test reframe_video with start_time and end_time parameters."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -974,12 +1082,15 @@ class TestReframeVideo:
 
             # Track frame position
             frame_pos = [0]
+
             def mock_set(prop, value):
                 if prop == reframer_module.cv2.CAP_PROP_POS_FRAMES:
                     frame_pos[0] = int(value)
+
             mock_cap.set = mock_set
 
             frame_count = [0]
+
             def mock_read():
                 # start_time=2, end_time=5 at 30fps = frames 60-150
                 current_frame = frame_pos[0] + frame_count[0]
@@ -987,39 +1098,46 @@ class TestReframeVideo:
                     frame_count[0] += 1
                     mock_frame = MagicMock()
                     mock_frame.shape = (1080, 1920, 3)
-                    mock_frame.dtype = 'uint8'
-                    mock_frame.flags = {'C_CONTIGUOUS': True}
+                    mock_frame.dtype = "uint8"
+                    mock_frame.flags = {"C_CONTIGUOUS": True}
                     return True, mock_frame
                 return False, None
+
             mock_cap.read = mock_read
 
             reframer_module.cv2.VideoCapture.return_value = mock_cap
             reframer_module.cv2.cvtColor = MagicMock(return_value=MagicMock())
-            reframer_module.cv2.resize = MagicMock(return_value=MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True},
-                __getitem__=lambda self, key: MagicMock(
+            reframer_module.cv2.resize = MagicMock(
+                return_value=MagicMock(
                     shape=(1920, 1080, 3),
-                    dtype='uint8',
-                    flags={'C_CONTIGUOUS': True}
+                    dtype="uint8",
+                    flags={"C_CONTIGUOUS": True},
+                    __getitem__=lambda self, key: MagicMock(
+                        shape=(1920, 1080, 3),
+                        dtype="uint8",
+                        flags={"C_CONTIGUOUS": True},
+                    ),
                 )
-            ))
+            )
 
-            reframer_module.np.zeros = MagicMock(return_value=MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True},
-                tobytes=MagicMock(return_value=b'\x00' * (1920 * 1080 * 3))
-            ))
-            reframer_module.np.uint8 = 'uint8'
+            reframer_module.np.zeros = MagicMock(
+                return_value=MagicMock(
+                    shape=(1920, 1080, 3),
+                    dtype="uint8",
+                    flags={"C_CONTIGUOUS": True},
+                    tobytes=MagicMock(return_value=b"\x00" * (1920 * 1080 * 3)),
+                )
+            )
+            reframer_module.np.uint8 = "uint8"
             reframer_module.np.ascontiguousarray = lambda x: x
 
             mock_writer = MagicMock()
             mock_writer.isOpened.return_value = True
             mock_writer.write.return_value = True
 
-            with patch.object(reframer_module, 'FFmpegVideoWriter', return_value=mock_writer):
+            with patch.object(
+                reframer_module, "FFmpegVideoWriter", return_value=mock_writer
+            ):
                 reframer = reframer_module.FaceReframer()
 
                 input_path = tmp_path / "input.mp4"
@@ -1031,7 +1149,7 @@ class TestReframeVideo:
                     str(output_path),
                     target_resolution=(1080, 1920),
                     start_time=2.0,
-                    end_time=5.0
+                    end_time=5.0,
                 )
 
                 assert result == str(output_path)
@@ -1050,9 +1168,14 @@ class TestEdgeCases:
 
     def test_face_leaving_frame_mid_video(self):
         """Test behavior when face leaves frame during video."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -1092,9 +1215,14 @@ class TestEdgeCases:
 
     def test_intermittent_face_detection(self):
         """Test behavior with intermittent face detection."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -1142,9 +1270,14 @@ class TestEdgeCases:
 
     def test_video_resolution_validation_error(self, tmp_path):
         """Test that ValueError is raised for insufficient resolution after scaling."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -1186,7 +1319,11 @@ class TestEdgeCases:
 
             def mock_max(*args):
                 # Return very small scale factor only for the reframe scaling call
-                if len(args) == 2 and isinstance(args[0], float) and isinstance(args[1], float):
+                if (
+                    len(args) == 2
+                    and isinstance(args[0], float)
+                    and isinstance(args[1], float)
+                ):
                     if args[0] < 1 and args[1] < 1:  # target smaller than source
                         return 0.1  # Force tiny scale
                 return original_max(*args)
@@ -1210,47 +1347,57 @@ class TestEdgeCases:
 
                 # Mock frame read
                 frame_count = [0]
+
                 def mock_read():
                     if frame_count[0] < 1:
                         frame_count[0] += 1
                         mock_frame = MagicMock()
                         mock_frame.shape = (1080, 1920, 3)
-                        mock_frame.dtype = 'uint8'
-                        mock_frame.flags = {'C_CONTIGUOUS': True}
+                        mock_frame.dtype = "uint8"
+                        mock_frame.flags = {"C_CONTIGUOUS": True}
                         return True, mock_frame
                     return False, None
+
                 mock_cap.read = mock_read
 
-                reframer_module.cv2.resize = MagicMock(return_value=MagicMock(
-                    shape=(1920, 1080, 3),
-                    dtype='uint8',
-                    flags={'C_CONTIGUOUS': True},
-                    __getitem__=lambda self, key: MagicMock(
+                reframer_module.cv2.resize = MagicMock(
+                    return_value=MagicMock(
                         shape=(1920, 1080, 3),
-                        dtype='uint8',
-                        flags={'C_CONTIGUOUS': True}
+                        dtype="uint8",
+                        flags={"C_CONTIGUOUS": True},
+                        __getitem__=lambda self, key: MagicMock(
+                            shape=(1920, 1080, 3),
+                            dtype="uint8",
+                            flags={"C_CONTIGUOUS": True},
+                        ),
                     )
-                ))
+                )
 
-                reframer_module.np.zeros = MagicMock(return_value=MagicMock(
-                    shape=(1920, 1080, 3),
-                    dtype='uint8',
-                    flags={'C_CONTIGUOUS': True},
-                    tobytes=MagicMock(return_value=b'\x00' * (1920 * 1080 * 3))
-                ))
-                reframer_module.np.uint8 = 'uint8'
+                reframer_module.np.zeros = MagicMock(
+                    return_value=MagicMock(
+                        shape=(1920, 1080, 3),
+                        dtype="uint8",
+                        flags={"C_CONTIGUOUS": True},
+                        tobytes=MagicMock(return_value=b"\x00" * (1920 * 1080 * 3)),
+                    )
+                )
+                reframer_module.np.uint8 = "uint8"
                 reframer_module.np.ascontiguousarray = lambda x: x
 
                 mock_results = MagicMock()
                 mock_results.detections = None
-                reframer_module.mp.solutions.face_detection.FaceDetection().process.return_value = mock_results
+                reframer_module.mp.solutions.face_detection.FaceDetection().process.return_value = (
+                    mock_results
+                )
                 reframer_module.cv2.cvtColor = MagicMock(return_value=MagicMock())
 
-                with patch.object(reframer_module, 'FFmpegVideoWriter', return_value=mock_writer):
+                with patch.object(
+                    reframer_module, "FFmpegVideoWriter", return_value=mock_writer
+                ):
                     result = reframer.reframe_video(
                         str(input_path),
                         str(output_path),
-                        target_resolution=(1080, 1920)
+                        target_resolution=(1080, 1920),
                     )
 
             except ValueError as e:
@@ -1264,9 +1411,14 @@ class TestEdgeCases:
 
     def test_cleanup_on_destructor(self):
         """Test that MediaPipe resources are cleaned up in destructor."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -1284,9 +1436,14 @@ class TestEdgeCases:
 
     def test_frame_sample_rate_processing(self, tmp_path):
         """Test that detection only runs every N frames based on sample rate."""
-        with patch.dict('sys.modules', {'cv2': MagicMock(), 'numpy': MagicMock(), 'mediapipe': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"cv2": MagicMock(), "numpy": MagicMock(), "mediapipe": MagicMock()},
+        ):
             import importlib
+
             import src.reframer as reframer_module
+
             importlib.reload(reframer_module)
 
             mock_face_detection = MagicMock()
@@ -1315,44 +1472,52 @@ class TestEdgeCases:
             mock_cap.isOpened.return_value = True
 
             frame_count = [0]
+
             def mock_read():
                 if frame_count[0] < 30:
                     frame_count[0] += 1
                     mock_frame = MagicMock()
                     mock_frame.shape = (1080, 1920, 3)
-                    mock_frame.dtype = 'uint8'
-                    mock_frame.flags = {'C_CONTIGUOUS': True}
+                    mock_frame.dtype = "uint8"
+                    mock_frame.flags = {"C_CONTIGUOUS": True}
                     return True, mock_frame
                 return False, None
+
             mock_cap.read = mock_read
 
             reframer_module.cv2.VideoCapture.return_value = mock_cap
             reframer_module.cv2.cvtColor = MagicMock(return_value=MagicMock())
-            reframer_module.cv2.resize = MagicMock(return_value=MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True},
-                __getitem__=lambda self, key: MagicMock(
+            reframer_module.cv2.resize = MagicMock(
+                return_value=MagicMock(
                     shape=(1920, 1080, 3),
-                    dtype='uint8',
-                    flags={'C_CONTIGUOUS': True}
+                    dtype="uint8",
+                    flags={"C_CONTIGUOUS": True},
+                    __getitem__=lambda self, key: MagicMock(
+                        shape=(1920, 1080, 3),
+                        dtype="uint8",
+                        flags={"C_CONTIGUOUS": True},
+                    ),
                 )
-            ))
+            )
 
-            reframer_module.np.zeros = MagicMock(return_value=MagicMock(
-                shape=(1920, 1080, 3),
-                dtype='uint8',
-                flags={'C_CONTIGUOUS': True},
-                tobytes=MagicMock(return_value=b'\x00' * (1920 * 1080 * 3))
-            ))
-            reframer_module.np.uint8 = 'uint8'
+            reframer_module.np.zeros = MagicMock(
+                return_value=MagicMock(
+                    shape=(1920, 1080, 3),
+                    dtype="uint8",
+                    flags={"C_CONTIGUOUS": True},
+                    tobytes=MagicMock(return_value=b"\x00" * (1920 * 1080 * 3)),
+                )
+            )
+            reframer_module.np.uint8 = "uint8"
             reframer_module.np.ascontiguousarray = lambda x: x
 
             mock_writer = MagicMock()
             mock_writer.isOpened.return_value = True
             mock_writer.write.return_value = True
 
-            with patch.object(reframer_module, 'FFmpegVideoWriter', return_value=mock_writer):
+            with patch.object(
+                reframer_module, "FFmpegVideoWriter", return_value=mock_writer
+            ):
                 # Sample rate of 5 means detection on frames 0, 5, 10, 15, 20, 25
                 reframer = reframer_module.FaceReframer(frame_sample_rate=5)
 
@@ -1361,9 +1526,7 @@ class TestEdgeCases:
                 input_path.touch()
 
                 reframer.reframe_video(
-                    str(input_path),
-                    str(output_path),
-                    target_resolution=(1080, 1920)
+                    str(input_path), str(output_path), target_resolution=(1080, 1920)
                 )
 
                 # With 30 frames and sample_rate=5, detection should run 6 times

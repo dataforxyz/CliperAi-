@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Comprehensive pytest tests for src/video_exporter.py
 
@@ -9,10 +8,9 @@ Tests cover:
 - Integration tests with mocked subprocess for _export_single_clip
 """
 
-import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,10 +20,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.video_exporter import (
     VideoExporter,
-    _safe_parse_ffprobe_r_frame_rate,
     _resolve_ffmpeg_threads,
+    _safe_parse_ffprobe_r_frame_rate,
 )
-
 
 # ============================================================================
 # FIXTURES
@@ -241,7 +238,7 @@ class TestGetLogoOverlayFilter:
 
     def test_scale_0_1(self, exporter):
         """Test 10% scale (logo is 10% of video width)."""
-        chains, output = exporter._get_logo_overlay_filter(
+        chains, _output = exporter._get_logo_overlay_filter(
             video_stream="[0:v]",
             logo_stream="[1:v]",
             position="top-right",
@@ -251,7 +248,7 @@ class TestGetLogoOverlayFilter:
 
     def test_scale_0_25(self, exporter):
         """Test 25% scale (logo is 25% of video width)."""
-        chains, output = exporter._get_logo_overlay_filter(
+        chains, _output = exporter._get_logo_overlay_filter(
             video_stream="[0:v]",
             logo_stream="[1:v]",
             position="top-right",
@@ -261,7 +258,7 @@ class TestGetLogoOverlayFilter:
 
     def test_scale_0_5(self, exporter):
         """Test 50% scale (logo is half of video width)."""
-        chains, output = exporter._get_logo_overlay_filter(
+        chains, _output = exporter._get_logo_overlay_filter(
             video_stream="[0:v]",
             logo_stream="[1:v]",
             position="top-right",
@@ -283,7 +280,7 @@ class TestGetLogoOverlayFilter:
 
     def test_filter_chain_structure(self, exporter):
         """Verify filter chain has correct structure for FFmpeg."""
-        chains, output = exporter._get_logo_overlay_filter(
+        chains, _output = exporter._get_logo_overlay_filter(
             video_stream="[0:v]",
             logo_stream="[1:v]",
             position="top-right",
@@ -417,7 +414,9 @@ class TestGetSubtitleFilter:
             "Shadow": "5",
             "Bold": "-1",
         }
-        result = exporter._get_subtitle_filter("/path/to/subs.srt", "default", custom_style)
+        result = exporter._get_subtitle_filter(
+            "/path/to/subs.srt", "default", custom_style
+        )
         # Should use default style, not custom
         assert "FontSize=18" in result
         assert "FontSize=100" not in result
@@ -500,7 +499,9 @@ class TestEscapeFFmpegFilterPath:
     def test_windows_path_full_escape(self, exporter):
         """Full Windows path with drive letter is properly escaped."""
         # C: colon is also escaped in addition to backslashes and quotes
-        result = exporter._escape_ffmpeg_filter_path("C:\\Users\\John's Files\\subs.srt")
+        result = exporter._escape_ffmpeg_filter_path(
+            "C:\\Users\\John's Files\\subs.srt"
+        )
         assert result == "C\\:\\\\Users\\\\John\\'s Files\\\\subs.srt"
 
 
@@ -557,7 +558,7 @@ class TestExportSingleClipIntegration:
         """Test basic clip export generates correct FFmpeg command structure."""
         data = setup_clip_export
 
-        result = data["exporter"]._export_single_clip(
+        data["exporter"]._export_single_clip(
             video_path=data["video_path"],
             clip=data["clip"],
             video_name="test_video",
@@ -584,7 +585,7 @@ class TestExportSingleClipIntegration:
         """Test clip export with aspect ratio conversion."""
         data = setup_clip_export
 
-        result = data["exporter"]._export_single_clip(
+        data["exporter"]._export_single_clip(
             video_path=data["video_path"],
             clip=data["clip"],
             video_name="test_video",
@@ -615,7 +616,7 @@ class TestExportSingleClipIntegration:
         srt_path = data["output_dir"] / "clip_001.srt"
         srt_path.write_text("1\n00:00:00,000 --> 00:00:05,000\nTest subtitle\n")
 
-        result = data["exporter"]._export_single_clip(
+        data["exporter"]._export_single_clip(
             video_path=data["video_path"],
             clip=data["clip"],
             video_name="test_video",
@@ -642,7 +643,7 @@ class TestExportSingleClipIntegration:
         logo_path = tmp_path / "logo.png"
         logo_path.touch()
 
-        result = data["exporter"]._export_single_clip(
+        data["exporter"]._export_single_clip(
             video_path=data["video_path"],
             clip=data["clip"],
             video_name="test_video",
@@ -683,7 +684,7 @@ class TestExportSingleClipIntegration:
         logo_path = tmp_path / "logo.png"
         logo_path.touch()
 
-        result = data["exporter"]._export_single_clip(
+        data["exporter"]._export_single_clip(
             video_path=data["video_path"],
             clip=data["clip"],
             video_name="test_video",
@@ -733,7 +734,7 @@ class TestExportSingleClipIntegration:
 
             mock_reframer.reframe_video.side_effect = create_reframed
 
-            result = data["exporter"]._export_single_clip(
+            data["exporter"]._export_single_clip(
                 video_path=data["video_path"],
                 clip=data["clip"],
                 video_name="test_video",
@@ -765,7 +766,7 @@ class TestExportSingleClipIntegration:
         """Test CRF and threads parameters are passed to FFmpeg."""
         data = setup_clip_export
 
-        result = data["exporter"]._export_single_clip(
+        data["exporter"]._export_single_clip(
             video_path=data["video_path"],
             clip=data["clip"],
             video_name="test_video",
@@ -833,7 +834,7 @@ class TestExportSingleClipIntegration:
         """Test that preset 'fast' is used for encoding."""
         data = setup_clip_export
 
-        result = data["exporter"]._export_single_clip(
+        data["exporter"]._export_single_clip(
             video_path=data["video_path"],
             clip=data["clip"],
             video_name="test_video",

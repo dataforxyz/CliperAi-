@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Video Exporter - Corta videos en clips usando ffmpeg
 
@@ -11,16 +10,18 @@ import os
 import subprocess
 from fractions import Fraction
 from pathlib import Path
-from typing import Dict, List, Optional
-from rich.console import Console
-from rich.progress import Progress, TaskID
+from typing import Optional
 
-from src.utils.logger import get_logger
-from src.subtitle_generator import SubtitleGenerator
+from rich.console import Console
+from rich.progress import Progress
+
 from src.reframer import FaceReframer
 from src.speech_edge_clip import compute_speech_aware_boundaries
+from src.subtitle_generator import SubtitleGenerator
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
 
 def _safe_parse_ffprobe_r_frame_rate(r_frame_rate: object) -> float:
     """
@@ -105,15 +106,15 @@ class VideoExporter:
     def export_clips(
         self,
         video_path: str,
-        clips: List[Dict],
+        clips: list[dict],
         aspect_ratio: Optional[str] = None,
         video_name: Optional[str] = None,
         add_subtitles: bool = False,
         transcript_path: Optional[str] = None,
         subtitle_style: str = "default",
-        custom_style: Optional[Dict[str, str]] = None,
+        custom_style: Optional[dict[str, str]] = None,
         organize_by_style: bool = False,
-        clip_styles: Optional[Dict[int, str]] = None,
+        clip_styles: Optional[dict[int, str]] = None,
         # Face tracking parameters (PASO3)
         enable_face_tracking: bool = False,
         face_tracking_strategy: str = "keep_in_frame",
@@ -134,7 +135,7 @@ class VideoExporter:
         subtitle_max_duration: float = 5.0,
         # Output structure
         flat_output: bool = False,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Exporto todos los clips de un video
 
@@ -252,7 +253,7 @@ class VideoExporter:
         srt_path: Optional[str] = None,
         transcript_path: Optional[str] = None,
         subtitle_style: str = "default",
-        custom_style: Optional[Dict[str, str]] = None,
+        custom_style: Optional[dict[str, str]] = None,
         add_logo: bool = False,
         logo_path: Optional[str] = "assets/logo.png",
         logo_position: str = "top-right",
@@ -299,12 +300,14 @@ class VideoExporter:
 
             resolved_logo_path = coerce_logo_file(logo_path)
             if not resolved_logo_path:
-                logger.warning("Logo overlay requested but no valid logo file found; skipping logo.")
+                logger.warning(
+                    "Logo overlay requested but no valid logo file found; skipping logo."
+                )
         has_logo = bool(add_logo and resolved_logo_path)
 
         # Calculate trim parameters (speech-aware)
-        trim_args: List[str] = []
-        duration_args: List[str] = []
+        trim_args: list[str] = []
+        duration_args: list[str] = []
         temp_srt_path: Optional[Path] = None
 
         trim_window_start = 0.0
@@ -323,13 +326,14 @@ class VideoExporter:
                     trim_ms_start=trim_ms_start,
                     trim_ms_end=trim_ms_end,
                 )
-                if candidate_end > candidate_start:
-                    if candidate_start > 0 or candidate_end < total_duration:
-                        trim_window_start, trim_window_end = candidate_start, candidate_end
-                        logger.info(
-                            f"Speech-aware trim for full video: "
-                            f"0.000-{total_duration:.3f} -> {trim_window_start:.3f}-{trim_window_end:.3f}"
-                        )
+                if candidate_end > candidate_start and (
+                    candidate_start > 0 or candidate_end < total_duration
+                ):
+                    trim_window_start, trim_window_end = candidate_start, candidate_end
+                    logger.info(
+                        f"Speech-aware trim for full video: "
+                        f"0.000-{total_duration:.3f} -> {trim_window_start:.3f}-{trim_window_end:.3f}"
+                    )
 
         if trim_window_end is not None:
             if trim_window_start > 0:
@@ -345,11 +349,7 @@ class VideoExporter:
 
         # If we trimmed the start/end and subtitles are enabled, regenerate SRT for the trimmed window
         # so subtitles remain clip-relative to the exported output.
-        if (
-            has_subtitles
-            and transcript_path
-            and trim_window_end is not None
-        ):
+        if has_subtitles and transcript_path and trim_window_end is not None:
             temp_srt_path = video_output_dir / f"{output_path.stem}_trimmed.srt"
             generated = self.subtitle_generator.generate_srt_for_clip(
                 transcript_path=transcript_path,
@@ -363,7 +363,9 @@ class VideoExporter:
                 srt_file = temp_srt_path
                 has_subtitles = True
             else:
-                logger.warning("Failed to regenerate trimmed SRT; subtitles may be desynced if trimming occurred.")
+                logger.warning(
+                    "Failed to regenerate trimmed SRT; subtitles may be desynced if trimming occurred."
+                )
 
         # Use a two-step process when both logo and subtitles are enabled to avoid subtitle duplication bugs.
         needs_two_steps = has_logo and has_subtitles
@@ -371,7 +373,9 @@ class VideoExporter:
 
         try:
             if needs_two_steps:
-                logger.info("Applying logo first, then subtitles in a second step (shorts export).")
+                logger.info(
+                    "Applying logo first, then subtitles in a second step (shorts export)."
+                )
 
                 logo_chains, logo_out = self._get_logo_overlay_filter(
                     video_stream="[0:v]",
@@ -386,32 +390,40 @@ class VideoExporter:
                 cmd1.extend(["-i", str(video_path_p)])
                 cmd1.extend(["-i", str(resolved_logo_path)])
                 cmd1.extend(duration_args)  # -t after inputs
-                cmd1.extend([
-                    "-filter_complex",
-                    ";".join(logo_chains),
-                    "-map",
-                    logo_out,
-                    "-map",
-                    "0:a?",
-                    "-sn",
-                    "-c:v",
-                    "libx264",
-                    "-c:a",
-                    "aac",
-                    "-preset",
-                    "fast",
-                    "-crf",
-                    str(video_crf),
-                    "-threads",
-                    str(resolved_threads),
-                    "-y",
-                    str(temp_path_step1),
-                ])
-                result1 = subprocess.run(cmd1, capture_output=True, text=True, check=False)
+                cmd1.extend(
+                    [
+                        "-filter_complex",
+                        ";".join(logo_chains),
+                        "-map",
+                        logo_out,
+                        "-map",
+                        "0:a?",
+                        "-sn",
+                        "-c:v",
+                        "libx264",
+                        "-c:a",
+                        "aac",
+                        "-preset",
+                        "fast",
+                        "-crf",
+                        str(video_crf),
+                        "-threads",
+                        str(resolved_threads),
+                        "-y",
+                        str(temp_path_step1),
+                    ]
+                )
+                result1 = subprocess.run(
+                    cmd1, capture_output=True, text=True, check=False
+                )
                 if result1.returncode != 0:
-                    raise RuntimeError(f"Error exporting short (step 1): {result1.stderr}")
+                    raise RuntimeError(
+                        f"Error exporting short (step 1): {result1.stderr}"
+                    )
 
-                subtitle_filter = self._get_subtitle_filter(str(srt_file), subtitle_style, custom_style)
+                subtitle_filter = self._get_subtitle_filter(
+                    str(srt_file), subtitle_style, custom_style
+                )
                 cmd2 = [
                     "ffmpeg",
                     "-i",
@@ -423,9 +435,13 @@ class VideoExporter:
                     "-y",
                     str(output_path),
                 ]
-                result2 = subprocess.run(cmd2, capture_output=True, text=True, check=False)
+                result2 = subprocess.run(
+                    cmd2, capture_output=True, text=True, check=False
+                )
                 if result2.returncode != 0:
-                    raise RuntimeError(f"Error exporting short (step 2): {result2.stderr}")
+                    raise RuntimeError(
+                        f"Error exporting short (step 2): {result2.stderr}"
+                    )
 
                 return str(output_path)
 
@@ -444,14 +460,18 @@ class VideoExporter:
                 cmd.extend(["-i", str(video_path_p)])
                 cmd.extend(["-i", str(resolved_logo_path)])
                 cmd.extend(duration_args)  # -t after inputs
-                cmd.extend([
-                    "-filter_complex",
-                    ";".join(logo_chains),
-                    "-map",
-                    logo_out,
-                ])
+                cmd.extend(
+                    [
+                        "-filter_complex",
+                        ";".join(logo_chains),
+                        "-map",
+                        logo_out,
+                    ]
+                )
             elif has_subtitles:
-                subtitle_filter = self._get_subtitle_filter(str(srt_file), subtitle_style, custom_style)
+                subtitle_filter = self._get_subtitle_filter(
+                    str(srt_file), subtitle_style, custom_style
+                )
                 cmd.extend(["-i", str(video_path_p)])
                 cmd.extend(duration_args)
                 cmd.extend(["-vf", subtitle_filter, "-map", "0:v"])
@@ -505,14 +525,14 @@ class VideoExporter:
     def _export_single_clip(
         self,
         video_path: Path,
-        clip: Dict,
+        clip: dict,
         video_name: str,
         output_dir: Path,
         aspect_ratio: Optional[str] = None,
         add_subtitles: bool = False,
         transcript_path: Optional[str] = None,
         subtitle_style: str = "default",
-        custom_style: Optional[Dict[str, str]] = None,
+        custom_style: Optional[dict[str, str]] = None,
         enable_face_tracking: bool = False,
         face_tracking_strategy: str = "keep_in_frame",
         face_tracking_sample_rate: int = 3,
@@ -552,7 +572,9 @@ class VideoExporter:
 
         # Safety: Ensure we don't create negative or zero duration clips
         if end_time <= start_time:
-            logger.warning(f"Clip {clip_id} would have zero/negative duration after trim; keeping original window")
+            logger.warning(
+                f"Clip {clip_id} would have zero/negative duration after trim; keeping original window"
+            )
             start_time = float(clip["start_time"])
             end_time = float(clip["end_time"])
 
@@ -627,9 +649,13 @@ class VideoExporter:
 
             if using_face_tracking:
                 inputs.extend(["-i", str(video_to_process)])
-                inputs.extend(["-ss", str(start_time), "-t", str(duration), "-i", str(video_path)])
+                inputs.extend(
+                    ["-ss", str(start_time), "-t", str(duration), "-i", str(video_path)]
+                )
             else:
-                inputs.extend(["-ss", str(start_time), "-t", str(duration), "-i", str(video_path)])
+                inputs.extend(
+                    ["-ss", str(start_time), "-t", str(duration), "-i", str(video_path)]
+                )
 
             logo_input_idx = -1
             if add_logo and logo_path:
@@ -647,17 +673,26 @@ class VideoExporter:
                     simple_filters.append(aspect_filter)
 
             # If we are NOT doing two steps, add subtitles here
-            if not needs_two_steps and add_subtitles and subtitle_file and subtitle_file.exists():
-                subtitle_filter = self._get_subtitle_filter(str(subtitle_file), subtitle_style, custom_style)
+            if (
+                not needs_two_steps
+                and add_subtitles
+                and subtitle_file
+                and subtitle_file.exists()
+            ):
+                subtitle_filter = self._get_subtitle_filter(
+                    str(subtitle_file), subtitle_style, custom_style
+                )
                 simple_filters.append(subtitle_filter)
 
-            cmd = ["ffmpeg"] + inputs
+            cmd = ["ffmpeg", *inputs]
 
             # If a logo is present, we must use filter_complex
             if logo_input_idx != -1:
                 # Apply simple filters first, if any
                 if simple_filters:
-                    filter_chains.append(f"{last_video_stream}{','.join(simple_filters)}[v_filtered]")
+                    filter_chains.append(
+                        f"{last_video_stream}{','.join(simple_filters)}[v_filtered]"
+                    )
                     last_video_stream = "[v_filtered]"
 
                 logo_stream = f"[{logo_input_idx}:v]"
@@ -669,10 +704,19 @@ class VideoExporter:
                 )
                 filter_chains.extend(logo_chains)
 
-                cmd.extend(["-filter_complex", ";".join(filter_chains), "-map", last_video_stream])
+                cmd.extend(
+                    [
+                        "-filter_complex",
+                        ";".join(filter_chains),
+                        "-map",
+                        last_video_stream,
+                    ]
+                )
 
             elif simple_filters:
-                cmd.extend(["-vf", ",".join(simple_filters), "-map", f"{video_input_idx}:v"])
+                cmd.extend(
+                    ["-vf", ",".join(simple_filters), "-map", f"{video_input_idx}:v"]
+                )
             else:
                 cmd.extend(["-map", f"{video_input_idx}:v"])
 
@@ -710,8 +754,12 @@ class VideoExporter:
 
             # --- STEP 2: Add subtitles if required in a separate, safe step ---
             if needs_two_steps:
-                logger.info("Applying subtitles in a second step to avoid duplication bug.")
-                subtitle_filter = self._get_subtitle_filter(str(subtitle_file), subtitle_style, custom_style)
+                logger.info(
+                    "Applying subtitles in a second step to avoid duplication bug."
+                )
+                subtitle_filter = self._get_subtitle_filter(
+                    str(subtitle_file), subtitle_style, custom_style
+                )
                 cmd2 = [
                     "ffmpeg",
                     "-i",
@@ -724,12 +772,16 @@ class VideoExporter:
                     str(output_path),
                 ]
 
-                result2 = subprocess.run(cmd2, capture_output=True, text=True, check=False)
+                result2 = subprocess.run(
+                    cmd2, capture_output=True, text=True, check=False
+                )
                 if result2.returncode != 0:
                     logger.error(
                         f"Error adding subtitles (Step 2) for clip {clip_id}: {result2.stderr}"
                     )
-                    first_step_output.replace(output_path)  # Fallback to the version without subtitles
+                    first_step_output.replace(
+                        output_path
+                    )  # Fallback to the version without subtitles
                     return output_path
 
             logger.info(f"✓ Exported clip {clip_id}: {output_path.name}")
@@ -812,14 +864,16 @@ class VideoExporter:
             return "scale=1920:1080"
 
         else:
-            logger.warning(f"Aspect ratio '{aspect_ratio}' no reconocido, manteniendo original")
+            logger.warning(
+                f"Aspect ratio '{aspect_ratio}' no reconocido, manteniendo original"
+            )
             return None
 
     def _get_subtitle_filter(
         self,
         subtitle_path: str,
         style: str = "default",
-        custom_style: Optional[Dict[str, str]] = None,
+        custom_style: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Genero el filtro de ffmpeg para quemar subtítulos en el video
@@ -926,7 +980,7 @@ class VideoExporter:
 
         return subtitle_filter
 
-    def get_video_info(self, video_path: str) -> Dict:
+    def get_video_info(self, video_path: str) -> dict:
         """
         Obtengo información del video usando ffprobe
 
@@ -962,7 +1016,9 @@ class VideoExporter:
                 "duration": float(data["format"].get("duration", 0)),
                 "width": video_stream.get("width"),
                 "height": video_stream.get("height"),
-                "fps": _safe_parse_ffprobe_r_frame_rate(video_stream.get("r_frame_rate")),
+                "fps": _safe_parse_ffprobe_r_frame_rate(
+                    video_stream.get("r_frame_rate")
+                ),
                 "codec": video_stream.get("codec_name"),
             }
 

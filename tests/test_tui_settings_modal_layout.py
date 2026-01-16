@@ -7,7 +7,9 @@ import pytest
 pytest.importorskip("textual")
 
 
-async def _wait_until(pilot, predicate, *, timeout: float = 5.0, step: float = 0.05) -> None:
+async def _wait_until(
+    pilot, predicate, *, timeout: float = 5.0, step: float = 0.05
+) -> None:
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while True:
@@ -45,8 +47,13 @@ def test_settings_modal_layout_common_sizes(tmp_path: Path, monkeypatch) -> None
         settings_file = tmp_path / "config" / "app_settings.json"
         settings_file.parent.mkdir(parents=True, exist_ok=True)
         # Pre-set wizard_completed to skip the setup wizard during tests
-        settings_file.write_text(json.dumps({"_wizard_completed": True}), encoding="utf-8")
-        state_manager_module._state_manager_init_kwargs = {"app_root": tmp_path, "settings_file": settings_file}
+        settings_file.write_text(
+            json.dumps({"_wizard_completed": True}), encoding="utf-8"
+        )
+        state_manager_module._state_manager_init_kwargs = {
+            "app_root": tmp_path,
+            "settings_file": settings_file,
+        }
 
         import src.tui.app as tui_app_module
 
@@ -83,7 +90,9 @@ def test_settings_modal_layout_common_sizes(tmp_path: Path, monkeypatch) -> None
             def has_error() -> bool:
                 try:
                     err = app.screen.query_one("#setting_logo_path_error", Static)
-                    renderable = getattr(err, "renderable", getattr(err, "_renderable", ""))
+                    renderable = getattr(
+                        err, "renderable", getattr(err, "_renderable", "")
+                    )
                     return bool(err.display) and bool(str(renderable).strip())
                 except Exception:
                     return False

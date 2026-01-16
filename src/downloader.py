@@ -1,18 +1,20 @@
-# -*- coding: utf-8 -*-
 """
 Downloader de YouTube usando yt-dlp
 """
 
-import os
 import re
 from pathlib import Path
-from typing import Optional, Dict, Any
-from urllib.parse import urlparse, parse_qs
+from typing import Any, Optional
+from urllib.parse import parse_qs, urlparse
 
 import yt_dlp
 
+from .core.dependency_manager import (
+    DependencyProgress,
+    DependencyReporter,
+    DependencyStatus,
+)
 from .utils.logger import setup_logger
-from .core.dependency_manager import DependencyProgress, DependencyReporter, DependencyStatus
 
 
 class YoutubeDownloader:
@@ -20,7 +22,11 @@ class YoutubeDownloader:
     Mi clase principal para descargar videos de YouTube
     """
 
-    def __init__(self, download_dir: str = "downloads", reporter: Optional[DependencyReporter] = None):
+    def __init__(
+        self,
+        download_dir: str = "downloads",
+        reporter: Optional[DependencyReporter] = None,
+    ):
         # Aquí guardo dónde voy a poner los videos
         self.download_dir = Path(download_dir)
         self.reporter = reporter
@@ -33,8 +39,9 @@ class YoutubeDownloader:
         # Me aseguro de que la carpeta exista
         self.download_dir.mkdir(parents=True, exist_ok=True)
 
-        self.logger.info(f"✓ Downloader listo. Videos en: {self.download_dir.absolute()}")
-
+        self.logger.info(
+            f"✓ Downloader listo. Videos en: {self.download_dir.absolute()}"
+        )
 
     def validate_url(self, url: str) -> bool:
         """
@@ -45,9 +52,9 @@ class YoutubeDownloader:
             # Uso este regex para aceptar todos los formatos de YouTube
             # youtube.com/watch?v=... o youtu.be/...
             youtube_regex = (
-                r'(https?://)?(www\.)?'
-                r'(youtube\.com|youtu\.be)/'
-                r'(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})'
+                r"(https?://)?(www\.)?"
+                r"(youtube\.com|youtu\.be)/"
+                r"(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})"
             )
 
             match = re.match(youtube_regex, url)
@@ -63,7 +70,6 @@ class YoutubeDownloader:
             self.logger.error(f"Error al validar URL: {e}")
             return False
 
-
     def _extract_video_id(self, url: str) -> Optional[str]:
         """
         Necesito el ID del video (esos 11 caracteres únicos)
@@ -73,13 +79,13 @@ class YoutubeDownloader:
             # Caso youtube.com/watch?v=VIDEO_ID
             if "youtube.com" in url:
                 parsed = urlparse(url)
-                video_id = parse_qs(parsed.query).get('v')
+                video_id = parse_qs(parsed.query).get("v")
                 if video_id:
                     return video_id[0]
 
             # Caso youtu.be/VIDEO_ID
             elif "youtu.be" in url:
-                return url.split('/')[-1].split('?')[0]
+                return url.split("/")[-1].split("?")[0]
 
             return None
 
@@ -87,17 +93,16 @@ class YoutubeDownloader:
             self.logger.error(f"Error al extraer video ID: {e}")
             return None
 
-
-    def _progress_hook(self, d: Dict[str, Any]) -> None:
+    def _progress_hook(self, d: dict[str, Any]) -> None:
         """
         yt-dlp llama a esto mientras descarga
         Lo uso para mostrar el progreso en tiempo real
         """
-        if d['status'] == 'downloading':
+        if d["status"] == "downloading":
             # Extraigo la info de progreso que me da yt-dlp
-            percent = d.get('_percent_str', 'N/A')
-            speed = d.get('_speed_str', 'N/A')
-            eta = d.get('_eta_str', 'N/A')
+            percent = d.get("_percent_str", "N/A")
+            speed = d.get("_speed_str", "N/A")
+            eta = d.get("_eta_str", "N/A")
 
             self.logger.info(f"📥 {percent} | ⚡ {speed} | ⏱️  ETA: {eta}")
             if self.reporter and self._active_download_key:
@@ -112,7 +117,7 @@ class YoutubeDownloader:
                     )
                 )
 
-        elif d['status'] == 'finished':
+        elif d["status"] == "finished":
             self.logger.info("✓ Descarga completada. Procesando...")
             if self.reporter and self._active_download_key:
                 self.reporter.report(
@@ -126,8 +131,7 @@ class YoutubeDownloader:
                     )
                 )
 
-
-    def get_video_info(self, url: str) -> Optional[Dict[str, Any]]:
+    def get_video_info(self, url: str) -> Optional[dict[str, Any]]:
         """
         Obtengo la info del video SIN descargarlo
         Me sirve para validar y ver preview
@@ -139,8 +143,8 @@ class YoutubeDownloader:
         try:
             # Configuro yt-dlp para que solo extraiga info
             ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
+                "quiet": True,
+                "no_warnings": True,
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -151,13 +155,13 @@ class YoutubeDownloader:
 
                 # Extraigo lo que me interesa
                 video_info = {
-                    'id': info.get('id'),
-                    'title': info.get('title'),
-                    'duration': info.get('duration'),
-                    'uploader': info.get('uploader'),
-                    'view_count': info.get('view_count'),
-                    'description': info.get('description'),
-                    'thumbnail': info.get('thumbnail'),
+                    "id": info.get("id"),
+                    "title": info.get("title"),
+                    "duration": info.get("duration"),
+                    "uploader": info.get("uploader"),
+                    "view_count": info.get("view_count"),
+                    "description": info.get("description"),
+                    "thumbnail": info.get("thumbnail"),
                 }
 
                 self.logger.info(f"📺 {video_info['title']}")
@@ -169,12 +173,8 @@ class YoutubeDownloader:
             self.logger.error(f"Error al obtener info: {e}")
             return None
 
-
     def download(
-        self,
-        url: str,
-        quality: str = "best",
-        output_filename: Optional[str] = None
+        self, url: str, quality: str = "best", output_filename: Optional[str] = None
     ) -> Optional[str]:
         """
         Mi función principal de descarga
@@ -188,7 +188,9 @@ class YoutubeDownloader:
             return None
 
         try:
-            self._active_download_key = f"video_download:{self._extract_video_id(url) or url}"
+            self._active_download_key = (
+                f"video_download:{self._extract_video_id(url) or url}"
+            )
             self._active_download_desc = f"Video download ({quality})"
             if self.reporter and self._active_download_key:
                 self.reporter.report(
@@ -203,12 +205,12 @@ class YoutubeDownloader:
                 )
 
             # Extraigo el ID por si lo necesito
-            video_id = self._extract_video_id(url)
+            self._extract_video_id(url)
 
             # Decido cómo nombrar el archivo
             if output_filename:
                 # Si me dieron un nombre, lo limpio de caracteres raros
-                safe_filename = re.sub(r'[<>:"/\\|?*]', '', output_filename)
+                safe_filename = re.sub(r'[<>:"/\\|?*]', "", output_filename)
                 outtmpl = str(self.download_dir / f"{safe_filename}_%(id)s.%(ext)s")
             else:
                 # Si no, uso título + ID automáticamente
@@ -216,27 +218,29 @@ class YoutubeDownloader:
 
             # Mapeo las calidades a formato de yt-dlp
             format_map = {
-                'best': 'bestvideo+bestaudio/best',
-                '1080p': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
-                '720p': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
-                '480p': 'bestvideo[height<=480]+bestaudio/best[height<=480]',
-                '360p': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
+                "best": "bestvideo+bestaudio/best",
+                "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+                "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+                "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]",
+                "360p": "bestvideo[height<=360]+bestaudio/best[height<=360]",
             }
 
-            selected_format = format_map.get(quality, format_map['best'])
+            selected_format = format_map.get(quality, format_map["best"])
 
             # Configuro yt-dlp con todas las opciones
             ydl_opts = {
-                'format': selected_format,
-                'outtmpl': outtmpl,
-                'progress_hooks': [self._progress_hook],  # Mi función de progreso
-                'merge_output_format': 'mp4',
-                'postprocessors': [{
-                    'key': 'FFmpegVideoConvertor',
-                    'preferedformat': 'mp4',
-                }],
-                'quiet': False,
-                'no_warnings': False,
+                "format": selected_format,
+                "outtmpl": outtmpl,
+                "progress_hooks": [self._progress_hook],  # Mi función de progreso
+                "merge_output_format": "mp4",
+                "postprocessors": [
+                    {
+                        "key": "FFmpegVideoConvertor",
+                        "preferedformat": "mp4",
+                    }
+                ],
+                "quiet": False,
+                "no_warnings": False,
             }
 
             # ¡A descargar!
@@ -251,8 +255,8 @@ class YoutubeDownloader:
                 final_filename = ydl.prepare_filename(info)
 
                 # Me aseguro de que termine en .mp4
-                if not final_filename.endswith('.mp4'):
-                    final_filename = final_filename.rsplit('.', 1)[0] + '.mp4'
+                if not final_filename.endswith(".mp4"):
+                    final_filename = final_filename.rsplit(".", 1)[0] + ".mp4"
 
                 final_path = Path(final_filename)
 
@@ -318,7 +322,6 @@ class YoutubeDownloader:
         finally:
             self._active_download_key = None
 
-
     def download_audio_only(self, url: str) -> Optional[str]:
         """
         Descargo solo el audio en MP3
@@ -328,26 +331,28 @@ class YoutubeDownloader:
             return None
 
         try:
-            video_id = self._extract_video_id(url)
+            self._extract_video_id(url)
             outtmpl = str(self.download_dir / "%(title)s_%(id)s.%(ext)s")
 
             # Opciones para solo audio
             ydl_opts = {
-                'format': 'bestaudio/best',
-                'outtmpl': outtmpl,
-                'progress_hooks': [self._progress_hook],
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
+                "format": "bestaudio/best",
+                "outtmpl": outtmpl,
+                "progress_hooks": [self._progress_hook],
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "192",
+                    }
+                ],
             }
 
             self.logger.info(f"🎵 Descargando audio: {url}")
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                final_filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
+                final_filename = ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp3"
                 final_path = Path(final_filename)
 
                 if final_path.exists():

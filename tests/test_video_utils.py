@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for video_registry.py and video_namer.py utilities.
 
@@ -17,6 +16,12 @@ from pathlib import Path
 
 import pytest
 
+from src.utils.video_namer import (
+    FILLER_WORDS,
+    _extract_first_words,
+    _slugify,
+    generate_video_name,
+)
 from src.utils.video_registry import (
     SUPPORTED_VIDEO_EXTENSIONS,
     collect_local_video_paths,
@@ -24,13 +29,6 @@ from src.utils.video_registry import (
     is_supported_video_file,
     register_local_videos,
 )
-from src.utils.video_namer import (
-    FILLER_WORDS,
-    _extract_first_words,
-    _slugify,
-    generate_video_name,
-)
-
 
 # ============================================================================
 # FIXTURES
@@ -89,7 +87,9 @@ class TestIsSupportedVideoFile:
         for ext in SUPPORTED_VIDEO_EXTENSIONS:
             video_file = tmp_path / f"video{ext}"
             video_file.write_bytes(b"content")
-            assert is_supported_video_file(video_file) is True, f"{ext} should be supported"
+            assert (
+                is_supported_video_file(video_file) is True
+            ), f"{ext} should be supported"
 
     def test_uppercase_extensions_accepted(self, tmp_path: Path):
         """Verify uppercase extensions are also accepted."""
@@ -103,7 +103,9 @@ class TestIsSupportedVideoFile:
         for ext in unsupported:
             test_file = tmp_path / f"file{ext}"
             test_file.write_bytes(b"content")
-            assert is_supported_video_file(test_file) is False, f"{ext} should not be supported"
+            assert (
+                is_supported_video_file(test_file) is False
+            ), f"{ext} should not be supported"
 
     def test_directory_rejected(self, tmp_path: Path):
         """Verify directories are rejected even with video-like names."""
@@ -150,7 +152,9 @@ class TestDiscoverDownloadsAndRegister:
         # Check that at least one video was registered with correct data
         video_state = state_manager.get_video_state("test_video")
         assert video_state is not None
-        assert video_state.get("filename") in [f"test_video{ext}" for ext in SUPPORTED_VIDEO_EXTENSIONS]
+        assert video_state.get("filename") in [
+            f"test_video{ext}" for ext in SUPPORTED_VIDEO_EXTENSIONS
+        ]
 
     def test_creates_downloads_dir_if_missing(self, tmp_project_dir: Path):
         """Verify downloads/ directory is created if it doesn't exist."""
@@ -159,6 +163,7 @@ class TestDiscoverDownloadsAndRegister:
         downloads_dir = tmp_project_dir / "downloads"
         if downloads_dir.exists():
             import shutil
+
             shutil.rmtree(downloads_dir)
 
         state_manager = get_state_manager()
@@ -203,7 +208,7 @@ class TestCollectLocalVideoPaths:
         """Verify folder path collects all supported videos inside."""
         downloads_dir = tmp_project_dir / "downloads"
 
-        paths, errors = collect_local_video_paths(str(downloads_dir))
+        paths, _errors = collect_local_video_paths(str(downloads_dir))
 
         assert len(paths) >= 3  # At least mp4, mkv, webm
         # Verify all are video files
@@ -267,7 +272,7 @@ class TestCollectLocalVideoPaths:
         video.write_bytes(b"content")
 
         input_str = f"{video}, {video}, {video}"
-        paths, errors = collect_local_video_paths(input_str)
+        paths, _errors = collect_local_video_paths(input_str)
 
         assert len(paths) == 1
 
@@ -276,7 +281,7 @@ class TestCollectLocalVideoPaths:
         video = tmp_project_dir / "video.mp4"
         video.write_bytes(b"content")
 
-        paths, errors = collect_local_video_paths(f'"{video}"')
+        paths, _errors = collect_local_video_paths(f'"{video}"')
 
         assert len(paths) == 1
 
@@ -445,11 +450,7 @@ class TestExtractFirstWords:
 
     def test_fallback_to_segment_text(self):
         """Verify fallback to segment text when no word-level data."""
-        transcript = {
-            "segments": [
-                {"text": "Welcome to the amazing show today"}
-            ]
-        }
+        transcript = {"segments": [{"text": "Welcome to the amazing show today"}]}
         result = _extract_first_words(transcript, word_count=3)
         words = result.split()
 
@@ -464,11 +465,7 @@ class TestExtractFirstWords:
 
     def test_filters_single_char_words(self):
         """Verify single character words are filtered."""
-        transcript = {
-            "segments": [
-                {"text": "I a b interesting topic today"}
-            ]
-        }
+        transcript = {"segments": [{"text": "I a b interesting topic today"}]}
         result = _extract_first_words(transcript, word_count=3)
         words = result.split()
 
@@ -479,9 +476,7 @@ class TestExtractFirstWords:
     def test_respects_word_count_limit(self):
         """Verify word count limit is respected."""
         transcript = {
-            "segments": [
-                {"text": "one two three four five six seven eight nine ten"}
-            ]
+            "segments": [{"text": "one two three four five six seven eight nine ten"}]
         }
         result = _extract_first_words(transcript, word_count=3)
         words = result.split()

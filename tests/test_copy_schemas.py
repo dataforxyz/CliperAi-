@@ -1,27 +1,27 @@
-# -*- coding: utf-8 -*-
 """
 Comprehensive pytest tests for src/models/copy_schemas.py
 
 Tests all Pydantic models, validators, and helper functions with both
 positive and negative test cases.
 """
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
 from src.models.copy_schemas import (
-    CopyMetadata,
     ClipCopy,
+    CopyMetadata,
     CopysOutput,
     SavedCopys,
     calculate_averages,
     create_saved_copys,
 )
 
-
 # ============================================================================
 # FIXTURES
 # ============================================================================
+
 
 @pytest.fixture
 def valid_metadata_dict():
@@ -69,31 +69,44 @@ def valid_copys_output(valid_clip_copy_dict):
 # COPYMETADATA TESTS - normalize_sentiment validator
 # ============================================================================
 
+
 class TestCopyMetadataSentimentValidator:
     """Tests for CopyMetadata.normalize_sentiment() validator."""
 
-    @pytest.mark.parametrize("sentiment", [
-        "educational",
-        "humorous",
-        "inspirational",
-        "controversial",
-        "curious_educational",
-        "relatable",
-        "storytelling",
-    ])
+    @pytest.mark.parametrize(
+        "sentiment",
+        [
+            "educational",
+            "humorous",
+            "inspirational",
+            "controversial",
+            "curious_educational",
+            "relatable",
+            "storytelling",
+        ],
+    )
     def test_valid_sentiments_accepted(self, valid_metadata_dict, sentiment):
         """All valid sentiment literals should be accepted as-is."""
         valid_metadata_dict["sentiment"] = sentiment
         metadata = CopyMetadata(**valid_metadata_dict)
         assert metadata.sentiment == sentiment
 
-    @pytest.mark.parametrize("hybrid,expected", [
-        ("educational_storytelling", "educational"),
-        ("humorous_relatable", "humorous"),
-        ("inspirational_educational", "educational"),  # 'educational' appears earlier in valid_sentiments
-        ("storytelling_educational", "educational"),   # 'educational' appears earlier in valid_sentiments
-        ("curious_educational_humorous", "curious_educational"),
-    ])
+    @pytest.mark.parametrize(
+        "hybrid,expected",
+        [
+            ("educational_storytelling", "educational"),
+            ("humorous_relatable", "humorous"),
+            (
+                "inspirational_educational",
+                "educational",
+            ),  # 'educational' appears earlier in valid_sentiments
+            (
+                "storytelling_educational",
+                "educational",
+            ),  # 'educational' appears earlier in valid_sentiments
+            ("curious_educational_humorous", "curious_educational"),
+        ],
+    )
     def test_hybrid_sentiments_normalized(self, valid_metadata_dict, hybrid, expected):
         """Hybrid sentiments should be normalized to first valid match in valid_sentiments order."""
         valid_metadata_dict["sentiment"] = hybrid
@@ -123,6 +136,7 @@ class TestCopyMetadataSentimentValidator:
 # COPYMETADATA TESTS - topics_must_be_unique_and_limited validator
 # ============================================================================
 
+
 class TestCopyMetadataTopicsValidator:
     """Tests for CopyMetadata.topics_must_be_unique_and_limited() validator."""
 
@@ -134,7 +148,13 @@ class TestCopyMetadataTopicsValidator:
 
     def test_duplicate_topics_removed(self, valid_metadata_dict):
         """Duplicate topics should be removed (case-insensitive)."""
-        valid_metadata_dict["primary_topics"] = ["AI", "ai", "Tech", "tech", "innovation"]
+        valid_metadata_dict["primary_topics"] = [
+            "AI",
+            "ai",
+            "Tech",
+            "tech",
+            "innovation",
+        ]
         metadata = CopyMetadata(**valid_metadata_dict)
         # Should keep first occurrence, remove duplicates
         assert len(metadata.primary_topics) == 3
@@ -145,16 +165,35 @@ class TestCopyMetadataTopicsValidator:
     def test_topics_truncated_to_five(self, valid_metadata_dict):
         """More than 5 unique topics should be truncated to 5."""
         valid_metadata_dict["primary_topics"] = [
-            "AI", "tech", "innovation", "startup", "coding", "Python", "ML"
+            "AI",
+            "tech",
+            "innovation",
+            "startup",
+            "coding",
+            "Python",
+            "ML",
         ]
         metadata = CopyMetadata(**valid_metadata_dict)
         assert len(metadata.primary_topics) == 5
-        assert metadata.primary_topics == ["AI", "tech", "innovation", "startup", "coding"]
+        assert metadata.primary_topics == [
+            "AI",
+            "tech",
+            "innovation",
+            "startup",
+            "coding",
+        ]
 
     def test_duplicate_removal_before_truncation(self, valid_metadata_dict):
         """Duplicates should be removed before truncation."""
         valid_metadata_dict["primary_topics"] = [
-            "AI", "ai", "AI", "tech", "TECH", "innovation", "startup", "coding"
+            "AI",
+            "ai",
+            "AI",
+            "tech",
+            "TECH",
+            "innovation",
+            "startup",
+            "coding",
         ]
         metadata = CopyMetadata(**valid_metadata_dict)
         # After dedup: AI, tech, innovation, startup, coding (5 unique)
@@ -172,6 +211,7 @@ class TestCopyMetadataTopicsValidator:
 # ============================================================================
 # COPYMETADATA TESTS - Field Constraints
 # ============================================================================
+
 
 class TestCopyMetadataFieldConstraints:
     """Tests for CopyMetadata field constraints and ranges."""
@@ -278,6 +318,7 @@ class TestCopyMetadataFieldConstraints:
 # CLIPCOPY TESTS - truncate_and_validate_copy validator
 # ============================================================================
 
+
 class TestClipCopyCopyValidator:
     """Tests for ClipCopy.truncate_and_validate_copy() validator."""
 
@@ -340,6 +381,7 @@ class TestClipCopyCopyValidator:
 # CLIPCOPY TESTS - Field Constraints
 # ============================================================================
 
+
 class TestClipCopyFieldConstraints:
     """Tests for ClipCopy field constraints."""
 
@@ -384,6 +426,7 @@ class TestClipCopyFieldConstraints:
 # COPYSOUTPUT TESTS
 # ============================================================================
 
+
 class TestCopysOutput:
     """Tests for CopysOutput model."""
 
@@ -416,6 +459,7 @@ class TestCopysOutput:
 # ============================================================================
 # SAVEDCOPYS TESTS
 # ============================================================================
+
 
 class TestSavedCopys:
     """Tests for SavedCopys model."""
@@ -518,6 +562,7 @@ class TestSavedCopys:
 # HELPER FUNCTION TESTS - calculate_averages
 # ============================================================================
 
+
 class TestCalculateAverages:
     """Tests for calculate_averages() helper function."""
 
@@ -528,7 +573,9 @@ class TestCalculateAverages:
         assert avg_engagement == 8.5
         assert avg_viral == 7.8
 
-    def test_calculate_averages_multiple_clips(self, valid_clip_copy_dict, valid_metadata_dict):
+    def test_calculate_averages_multiple_clips(
+        self, valid_clip_copy_dict, valid_metadata_dict
+    ):
         """calculate_averages should average multiple clips."""
         clip1_dict = valid_clip_copy_dict.copy()
         clip1_dict["metadata"] = valid_metadata_dict.copy()
@@ -549,6 +596,7 @@ class TestCalculateAverages:
 
     def test_calculate_averages_empty_clips(self):
         """calculate_averages with no clips should return (0.0, 0.0)."""
+
         # Create a CopysOutput-like object with empty clips for this test
         # Since CopysOutput requires min_length=1, we need to test the function directly
         class MockOutput:
@@ -558,7 +606,9 @@ class TestCalculateAverages:
         assert avg_engagement == 0.0
         assert avg_viral == 0.0
 
-    def test_calculate_averages_rounds_to_two_decimals(self, valid_clip_copy_dict, valid_metadata_dict):
+    def test_calculate_averages_rounds_to_two_decimals(
+        self, valid_clip_copy_dict, valid_metadata_dict
+    ):
         """calculate_averages should round to 2 decimal places."""
         clip1_dict = valid_clip_copy_dict.copy()
         clip1_dict["metadata"] = valid_metadata_dict.copy()
@@ -577,11 +627,13 @@ class TestCalculateAverages:
         clip3_dict["metadata"]["engagement_score"] = 9.0
         clip3_dict["metadata"]["viral_potential"] = 8.0
 
-        output = CopysOutput(clips=[
-            ClipCopy(**clip1_dict),
-            ClipCopy(**clip2_dict),
-            ClipCopy(**clip3_dict),
-        ])
+        output = CopysOutput(
+            clips=[
+                ClipCopy(**clip1_dict),
+                ClipCopy(**clip2_dict),
+                ClipCopy(**clip3_dict),
+            ]
+        )
         avg_engagement, avg_viral = calculate_averages(output)
 
         # (7+8+9)/3 = 8.0, (6+7+8)/3 = 7.0
@@ -592,6 +644,7 @@ class TestCalculateAverages:
 # ============================================================================
 # HELPER FUNCTION TESTS - create_saved_copys
 # ============================================================================
+
 
 class TestCreateSavedCopys:
     """Tests for create_saved_copys() helper function."""
@@ -612,7 +665,9 @@ class TestCreateSavedCopys:
         assert isinstance(saved.generated_at, datetime)
         assert len(saved.clips) == 1
 
-    def test_create_saved_copys_calculates_averages(self, valid_clip_copy_dict, valid_metadata_dict):
+    def test_create_saved_copys_calculates_averages(
+        self, valid_clip_copy_dict, valid_metadata_dict
+    ):
         """create_saved_copys should calculate averages correctly."""
         clip1_dict = valid_clip_copy_dict.copy()
         clip1_dict["metadata"] = valid_metadata_dict.copy()
@@ -654,6 +709,7 @@ class TestCreateSavedCopys:
 # ============================================================================
 # NEGATIVE TESTS - Invalid Data Types
 # ============================================================================
+
 
 class TestInvalidDataTypes:
     """Negative tests with invalid data types."""
@@ -705,6 +761,7 @@ class TestInvalidDataTypes:
 # ============================================================================
 # EDGE CASES
 # ============================================================================
+
 
 class TestEdgeCases:
     """Edge case tests."""

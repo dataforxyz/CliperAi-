@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Transcriber - Convierte audio de video a texto con timestamps
 
@@ -6,15 +5,16 @@ Usa WhisperX para obtener transcripciones precisas que después
 me permiten detectar dónde cortar los clips
 """
 
+import gc
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional, List
-import gc
+from typing import Optional
+
 import torch
 
-from .utils.logger import setup_logger
 from .core.dependency_manager import load_align_model, load_whisper_model
+from .utils.logger import setup_logger
 
 
 class Transcriber:
@@ -26,10 +26,7 @@ class Transcriber:
     """
 
     def __init__(
-        self,
-        model_size: str = "base",
-        device: str = "auto",
-        compute_type: str = "int8"
+        self, model_size: str = "base", device: str = "auto", compute_type: str = "int8"
     ):
         """
         Inicializo el transcriber
@@ -69,9 +66,12 @@ class Transcriber:
 
         # Cargo el modelo de Whisper
         self.logger.info(f"Cargando modelo Whisper ({model_size})...")
-        self.model = load_whisper_model(model_size=self.model_size, device=self.device, compute_type=self.compute_type)
+        self.model = load_whisper_model(
+            model_size=self.model_size,
+            device=self.device,
+            compute_type=self.compute_type,
+        )
         self.logger.info("Modelo cargado exitosamente")
-
 
     def _extract_audio(self, video_path: str, output_audio_path: str) -> bool:
         """
@@ -95,23 +95,22 @@ class Transcriber:
             # -ar: sample rate (16000 es óptimo para Whisper)
             # -ac: canales de audio (1 = mono)
             command = [
-                'ffmpeg',
-                '-i', video_path,
-                '-vn',  # Sin video
-                '-acodec', 'pcm_s16le',  # WAV formato
-                '-ar', '16000',  # 16kHz sample rate
-                '-ac', '1',  # Mono
-                '-y',  # Sobrescribir si existe
-                output_audio_path
+                "ffmpeg",
+                "-i",
+                video_path,
+                "-vn",  # Sin video
+                "-acodec",
+                "pcm_s16le",  # WAV formato
+                "-ar",
+                "16000",  # 16kHz sample rate
+                "-ac",
+                "1",  # Mono
+                "-y",  # Sobrescribir si existe
+                output_audio_path,
             ]
 
             # Ejecuto el comando
-            result = subprocess.run(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
+            result = subprocess.run(command, capture_output=True, text=True)
 
             if result.returncode == 0:
                 self.logger.info(f"Audio extraído: {output_audio_path}")
@@ -124,12 +123,11 @@ class Transcriber:
             self.logger.error(f"Excepción al extraer audio: {e}")
             return False
 
-
     def transcribe(
         self,
         video_path: str,
         language: Optional[str] = None,
-        skip_if_exists: bool = True
+        skip_if_exists: bool = True,
     ) -> Optional[str]:
         """
         Transcribo un video completo
@@ -181,15 +179,15 @@ class Transcriber:
 
             # PASO 2: Transcribir con WhisperX
             self.logger.info("Iniciando transcripción con WhisperX...")
-            self.logger.info("Esto puede tardar varios minutos dependiendo de la duración del video")
+            self.logger.info(
+                "Esto puede tardar varios minutos dependiendo de la duración del video"
+            )
 
             import whisperx  # type: ignore
 
             audio = whisperx.load_audio(str(audio_path))
             result = self.model.transcribe(
-                audio,
-                batch_size=16,  # Ajusta según tu RAM
-                language=language
+                audio, batch_size=16, language=language  # Ajusta según tu RAM
             )
 
             detected_language = result.get("language", "unknown")
@@ -202,26 +200,32 @@ class Transcriber:
             # WhisperX a veces devuelve nombres completos (e.g. 'english')
             # pero load_align_model necesita códigos ISO (e.g. 'en')
             language_code_map = {
-                'english': 'en',
-                'spanish': 'es',
-                'french': 'fr',
-                'german': 'de',
-                'italian': 'it',
-                'portuguese': 'pt',
-                'chinese': 'zh',
-                'japanese': 'ja',
-                'korean': 'ko',
-                'russian': 'ru',
-                'arabic': 'ar',
-                'hindi': 'hi',
+                "english": "en",
+                "spanish": "es",
+                "french": "fr",
+                "german": "de",
+                "italian": "it",
+                "portuguese": "pt",
+                "chinese": "zh",
+                "japanese": "ja",
+                "korean": "ko",
+                "russian": "ru",
+                "arabic": "ar",
+                "hindi": "hi",
             }
 
             # Convierto a código ISO si es necesario
-            align_language = language_code_map.get(detected_language.lower(), detected_language)
-            self.logger.info(f"Usando código de idioma para alineación: {align_language}")
+            align_language = language_code_map.get(
+                detected_language.lower(), detected_language
+            )
+            self.logger.info(
+                f"Usando código de idioma para alineación: {align_language}"
+            )
 
             # Cargo modelo de alineación
-            model_a, metadata = load_align_model(language_code=align_language, device=self.device, cache_in_memory=False)
+            model_a, metadata = load_align_model(
+                language_code=align_language, device=self.device, cache_in_memory=False
+            )
 
             # Alineo
             result = whisperx.align(
@@ -230,7 +234,7 @@ class Transcriber:
                 metadata,
                 audio,
                 self.device,
-                return_char_alignments=False
+                return_char_alignments=False,
             )
 
             # Libero memoria del modelo de alineación
@@ -246,11 +250,11 @@ class Transcriber:
                 "audio_path": str(audio_path),
                 "language": detected_language,
                 "segments": result["segments"],
-                "word_segments": result.get("word_segments", [])
+                "word_segments": result.get("word_segments", []),
             }
 
             # Guardo como JSON
-            with open(transcript_path, 'w', encoding='utf-8') as f:
+            with open(transcript_path, "w", encoding="utf-8") as f:
                 json.dump(transcript_data, f, ensure_ascii=False, indent=2)
 
             self.logger.info(f"Transcripción guardada: {transcript_path}")
@@ -262,22 +266,20 @@ class Transcriber:
             self.logger.error(f"Error durante transcripción: {e}")
             return None
 
-
-    def load_transcript(self, transcript_path: str) -> Optional[Dict]:
+    def load_transcript(self, transcript_path: str) -> Optional[dict]:
         """
         Cargo una transcripción ya existente
 
         Útil cuando ya transcribí antes y solo quiero leer el JSON
         """
         try:
-            with open(transcript_path, 'r', encoding='utf-8') as f:
+            with open(transcript_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             self.logger.error(f"Error cargando transcripción: {e}")
             return None
 
-
-    def get_transcript_summary(self, transcript_path: str) -> Optional[Dict]:
+    def get_transcript_summary(self, transcript_path: str) -> Optional[dict]:
         """
         Obtengo un resumen de la transcripción sin cargar todo
 
@@ -305,15 +307,13 @@ class Transcriber:
             "num_segments": len(segments),
             "total_duration": total_duration,
             "total_words": total_words,
-            "first_text": segments[0].get("text", "")[:100] + "..." if segments else ""
+            "first_text": segments[0].get("text", "")[:100] + "..." if segments else "",
         }
 
 
 # Función helper para uso rápido
 def transcribe_video(
-    video_path: str,
-    model_size: str = "base",
-    language: Optional[str] = None
+    video_path: str, model_size: str = "base", language: Optional[str] = None
 ) -> Optional[str]:
     """
     Función de conveniencia para transcribir rápidamente

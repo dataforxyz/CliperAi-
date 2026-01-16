@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Test script para verificar que la API de Gemini funciona correctamente.
 
@@ -13,10 +12,11 @@ Uso:
     uv run python tests/test_gemini_api.py
 """
 
+import json
 import os
 import sys
-import json
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -51,18 +51,15 @@ def test_basic_connection():
     print("=" * 60)
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.1
-        )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
 
         response = llm.invoke("Say 'Hello World' in one sentence.")
-        print(f"✓ Modelo inicializado correctamente")
+        print("✓ Modelo inicializado correctamente")
         print(f"✓ Respuesta: {response.content}")
         return True
 
     except Exception as e:
-        print(f"❌ FAIL: Error al conectar con el modelo")
+        print("❌ FAIL: Error al conectar con el modelo")
         print(f"   Error: {e}")
         return False
 
@@ -74,10 +71,7 @@ def test_json_generation():
     print("=" * 60)
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.3
-        )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
 
         prompt = """Generate a JSON object with the following structure:
 {
@@ -101,17 +95,17 @@ Respond ONLY with valid JSON (no markdown, no explanations):"""
         # Intentar parsear JSON
         data = json.loads(response_text)
 
-        print(f"✓ JSON válido generado")
+        print("✓ JSON válido generado")
         print(f"✓ Datos parseados: {data}")
         return True
 
     except json.JSONDecodeError as e:
-        print(f"❌ FAIL: El modelo no generó JSON válido")
+        print("❌ FAIL: El modelo no generó JSON válido")
         print(f"   Error: {e}")
         print(f"   Response: {response_text}")
         return False
     except Exception as e:
-        print(f"❌ FAIL: Error al generar JSON")
+        print("❌ FAIL: Error al generar JSON")
         print(f"   Error: {e}")
         return False
 
@@ -123,16 +117,13 @@ def test_clip_classification():
     print("=" * 60)
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.7
-        )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
 
         # Simular un clip real
         clip_data = {
             "clip_id": 1,
             "transcript": "Hoy vamos a hablar sobre React hooks. Los hooks son una forma de usar state y otras características de React sin escribir una clase. El hook más común es useState.",
-            "duration": 45
+            "duration": 45,
         }
 
         prompt = f"""Clasifica este clip de video en uno de estos estilos: viral, educational, storytelling.
@@ -174,16 +165,17 @@ Responde SOLO con JSON en este formato (sin markdown):
             print(f"❌ FAIL: Style '{classification['style']}' no es válido")
             return False
 
-        print(f"✓ Clasificación correcta generada")
+        print("✓ Clasificación correcta generada")
         print(f"✓ Style: {classification['style']}")
         print(f"✓ Confidence: {classification['confidence']}")
         print(f"✓ Reason: {classification['reason']}")
         return True
 
     except Exception as e:
-        print(f"❌ FAIL: Error en clasificación")
+        print("❌ FAIL: Error en clasificación")
         print(f"   Error: {e}")
         import traceback
+
         print(f"   Traceback:\n{traceback.format_exc()}")
         return False
 
@@ -195,16 +187,13 @@ def test_copy_generation():
     print("=" * 60)
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.8
-        )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.8)
 
         # Simular un clip real
         clip_data = {
             "clip_id": 1,
             "transcript": "Hoy vamos a hablar sobre React hooks. Los hooks son una forma de usar state y otras características de React sin escribir una clase.",
-            "duration": 45
+            "duration": 45,
         }
 
         prompt = f"""Genera un copy viral para este clip de video sobre tecnología.
@@ -246,24 +235,25 @@ Responde SOLO con JSON (sin markdown):
 
         # Validar estructura
         if "copy" not in copy_data:
-            print(f"❌ FAIL: Falta el campo 'copy'")
+            print("❌ FAIL: Falta el campo 'copy'")
             return False
 
         # Validar que tenga #AICDMX
         if "#AICDMX" not in copy_data["copy"].upper():
-            print(f"❌ FAIL: El copy no incluye #AICDMX")
+            print("❌ FAIL: El copy no incluye #AICDMX")
             print(f"   Copy: {copy_data['copy']}")
             return False
 
-        print(f"✓ Copy generado correctamente")
+        print("✓ Copy generado correctamente")
         print(f"✓ Copy: {copy_data['copy']}")
         print(f"✓ Metadata: {copy_data.get('metadata', {})}")
         return True
 
     except Exception as e:
-        print(f"❌ FAIL: Error generando copy")
+        print("❌ FAIL: Error generando copy")
         print(f"   Error: {e}")
         import traceback
+
         print(f"   Traceback:\n{traceback.format_exc()}")
         return False
 
@@ -281,7 +271,7 @@ def main():
         test_basic_connection,
         test_json_generation,
         test_clip_classification,
-        test_copy_generation
+        test_copy_generation,
     ]
 
     results = []
@@ -292,6 +282,7 @@ def main():
         except Exception as e:
             print(f"\n❌ Test crashed: {e}")
             import traceback
+
             print(traceback.format_exc())
             results.append(False)
 
@@ -311,7 +302,9 @@ def main():
     print(f"Total: {passed}/{total} tests passed")
 
     if passed == total:
-        print("\n🎉 ¡Todos los tests pasaron! La API de Gemini está funcionando correctamente.")
+        print(
+            "\n🎉 ¡Todos los tests pasaron! La API de Gemini está funcionando correctamente."
+        )
         return 0
     else:
         print(f"\n⚠️  {total - passed} test(s) fallaron. Revisa la configuración.")

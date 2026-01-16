@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 SUPPORTED_VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov", ".mkv", ".webm"}
 
@@ -45,7 +46,7 @@ def compute_unique_video_id(video_path: Path, state_manager) -> str:
 def discover_downloads_and_register(
     state_manager,
     downloads_dir: Path = Path("downloads"),
-) -> List[Path]:
+) -> list[Path]:
     """
     Descubre videos en downloads/ y los registra/actualiza en el state.
     Retorna la lista de archivos encontrados (únicos).
@@ -68,7 +69,9 @@ def discover_downloads_and_register(
     return sorted(video_files, key=lambda p: p.name.lower())
 
 
-def _resolve_existing_video_path(video_id: str, filename: str, video_path: Optional[str]) -> Optional[Path]:
+def _resolve_existing_video_path(
+    video_id: str, filename: str, video_path: str | None
+) -> Path | None:
     if video_path:
         candidate = Path(video_path)
         if candidate.exists() and candidate.is_file():
@@ -81,7 +84,7 @@ def _resolve_existing_video_path(video_id: str, filename: str, video_path: Optio
     return None
 
 
-def load_registered_videos(state_manager) -> List[Dict[str, str]]:
+def load_registered_videos(state_manager) -> list[dict[str, str]]:
     """
     Fuente única de verdad para el UI:
     - Descubre videos en downloads/ y los registra/actualiza en el state.
@@ -93,23 +96,31 @@ def load_registered_videos(state_manager) -> List[Dict[str, str]]:
     """
     discover_downloads_and_register(state_manager)
 
-    videos: List[Dict[str, str]] = []
+    videos: list[dict[str, str]] = []
     for video_id, state in state_manager.get_all_videos().items():
         filename = state.get("filename") or f"{video_id}.mp4"
-        resolved_path = _resolve_existing_video_path(video_id, filename, state.get("video_path"))
+        resolved_path = _resolve_existing_video_path(
+            video_id, filename, state.get("video_path")
+        )
         if not resolved_path:
             continue
 
         if not state.get("video_path"):
-            state_manager.register_video(video_id=video_id, filename=filename, video_path=str(resolved_path))
+            state_manager.register_video(
+                video_id=video_id, filename=filename, video_path=str(resolved_path)
+            )
 
-        videos.append({"filename": filename, "path": str(resolved_path), "video_id": video_id})
+        videos.append(
+            {"filename": filename, "path": str(resolved_path), "video_id": video_id}
+        )
 
     videos.sort(key=lambda v: v["filename"].lower())
     return videos
 
 
-def collect_local_video_paths(input_str: str, *, recursive: bool = False) -> Tuple[List[Path], List[str]]:
+def collect_local_video_paths(
+    input_str: str, *, recursive: bool = False
+) -> tuple[list[Path], list[str]]:
     """
     Accepts:
     - A file path
@@ -121,8 +132,8 @@ def collect_local_video_paths(input_str: str, *, recursive: bool = False) -> Tup
         return [], ["No input provided"]
 
     parts = [p.strip() for p in raw.split(",") if p.strip()]
-    paths: List[Path] = []
-    errors: List[str] = []
+    paths: list[Path] = []
+    errors: list[str] = []
     for part in parts:
         normalized = part.strip().strip('"').strip("'")
         p = Path(normalized).expanduser()
@@ -131,7 +142,7 @@ def collect_local_video_paths(input_str: str, *, recursive: bool = False) -> Tup
             continue
         paths.append(p)
 
-    filtered: List[Path] = []
+    filtered: list[Path] = []
     for p in paths:
         if p.is_dir():
             iterator = p.rglob("*") if recursive else p.iterdir()
@@ -147,7 +158,7 @@ def collect_local_video_paths(input_str: str, *, recursive: bool = False) -> Tup
         else:
             errors.append(f"Unsupported video file: {p}")
 
-    unique: List[Path] = []
+    unique: list[Path] = []
     seen: set[str] = set()
     for p in filtered:
         try:
@@ -166,12 +177,12 @@ def register_local_videos(
     paths: Iterable[Path],
     *,
     content_type: str = "tutorial",
-    preset: Optional[Dict] = None,
-) -> List[str]:
+    preset: dict | None = None,
+) -> list[str]:
     """
     Registra paths locales en el state y retorna la lista de video_ids creados.
     """
-    video_ids: List[str] = []
+    video_ids: list[str] = []
     for p in paths:
         video_file = Path(p)
         if not is_supported_video_file(video_file):

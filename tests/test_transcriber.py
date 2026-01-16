@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for the Transcriber class (src/transcriber.py).
 
@@ -11,7 +10,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ============================================================================
 # MOCK FIXTURES
@@ -195,9 +193,7 @@ class TestTranscribeMethod:
             patch(
                 "src.transcriber.load_whisper_model", return_value=mock_whisper_model
             ),
-            patch(
-                "src.transcriber.load_align_model", return_value=mock_align_model
-            ),
+            patch("src.transcriber.load_align_model", return_value=mock_align_model),
             patch.dict("sys.modules", {"whisperx": mock_whisperx}),
         ):
             from src.transcriber import Transcriber
@@ -400,9 +396,7 @@ class TestLanguageDetection:
             patch(
                 "src.transcriber.load_whisper_model", return_value=mock_whisper_model
             ),
-            patch(
-                "src.transcriber.load_align_model", return_value=mock_align_model
-            ),
+            patch("src.transcriber.load_align_model", return_value=mock_align_model),
             patch.dict("sys.modules", {"whisperx": mock_whisperx}),
         ):
             from src.transcriber import Transcriber

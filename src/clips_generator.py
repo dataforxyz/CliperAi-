@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Clips Generator - Detecta automáticamente dónde cortar clips usando ClipsAI
 
@@ -8,7 +7,8 @@ algoritmo TextTiling con BERT embeddings para marcar puntos de corte.
 
 import json
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Optional
+
 from clipsai import ClipFinder, Transcription
 
 from .utils.logger import setup_logger
@@ -26,11 +26,7 @@ class ClipsGenerator:
     5. Guardo metadata de clips para editarlos después
     """
 
-    def __init__(
-        self,
-        min_clip_duration: int = 30,
-        max_clip_duration: int = 90
-    ):
+    def __init__(self, min_clip_duration: int = 30, max_clip_duration: int = 90):
         """
         Inicializo el generador de clips
 
@@ -54,8 +50,7 @@ class ClipsGenerator:
         # puede que ClipsAI no encuentre suficientes clips con parámetros restrictivos.
         # En ese caso, considera aumentar max_clip_duration o usar cortes por tiempo fijo.
         self.clip_finder = ClipFinder(
-            min_clip_duration=min_clip_duration,
-            max_clip_duration=max_clip_duration
+            min_clip_duration=min_clip_duration, max_clip_duration=max_clip_duration
         )
 
         self.logger.info(
@@ -63,8 +58,7 @@ class ClipsGenerator:
             f"(clips: {min_clip_duration}s - {max_clip_duration}s)"
         )
 
-
-    def _load_transcript(self, transcript_path: str) -> Optional[Dict]:
+    def _load_transcript(self, transcript_path: str) -> Optional[dict]:
         """
         Cargo la transcripción generada por WhisperX
 
@@ -85,10 +79,12 @@ class ClipsGenerator:
                 self.logger.error(f"Transcripción no encontrada: {transcript_path}")
                 return None
 
-            with open(transcript_file, 'r', encoding='utf-8') as f:
+            with open(transcript_file, encoding="utf-8") as f:
                 data = json.load(f)
 
-            self.logger.info(f"Transcripción cargada: {len(data.get('segments', []))} segmentos")
+            self.logger.info(
+                f"Transcripción cargada: {len(data.get('segments', []))} segmentos"
+            )
 
             return data
 
@@ -96,8 +92,9 @@ class ClipsGenerator:
             self.logger.error(f"Error cargando transcripción: {e}")
             return None
 
-
-    def _convert_to_clipsai_format(self, whisperx_data: Dict) -> Optional[Transcription]:
+    def _convert_to_clipsai_format(
+        self, whisperx_data: dict
+    ) -> Optional[Transcription]:
         """
         Convierto la transcripción de WhisperX al formato de ClipsAI
 
@@ -130,12 +127,14 @@ class ClipsGenerator:
                     text = seg.get("text", "").strip()
                     if text:
                         for char in text:
-                            char_info.append({
-                                "char": char,
-                                "start_time": seg.get("start", 0.0),
-                                "end_time": seg.get("end", 0.0),
-                                "speaker": "SPEAKER_00"  # Default speaker
-                            })
+                            char_info.append(
+                                {
+                                    "char": char,
+                                    "start_time": seg.get("start", 0.0),
+                                    "end_time": seg.get("end", 0.0),
+                                    "speaker": "SPEAKER_00",  # Default speaker
+                                }
+                            )
                 else:
                     # Si hay words, uso esas para mayor precisión
                     for word_obj in words:
@@ -144,12 +143,14 @@ class ClipsGenerator:
                         word_end = word_obj.get("end", 0.0)
 
                         for char in word_text:
-                            char_info.append({
-                                "char": char,
-                                "start_time": word_start,
-                                "end_time": word_end,
-                                "speaker": "SPEAKER_00"  # Default speaker
-                            })
+                            char_info.append(
+                                {
+                                    "char": char,
+                                    "start_time": word_start,
+                                    "end_time": word_end,
+                                    "speaker": "SPEAKER_00",  # Default speaker
+                                }
+                            )
 
             # Construyo el dict con el formato que ClipsAI espera
             clipsai_dict = {
@@ -157,7 +158,7 @@ class ClipsGenerator:
                 "source_software": "whisperx",
                 "language": whisperx_data.get("language", "en"),
                 "num_speakers": 1,  # WhisperX no hace diarization por defecto
-                "char_info": char_info
+                "char_info": char_info,
             }
 
             # Creo el objeto Transcription
@@ -173,16 +174,13 @@ class ClipsGenerator:
         except Exception as e:
             self.logger.error(f"Error creando objeto Transcription: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return None
 
-
     def _generate_fixed_time_clips(
-        self,
-        whisperx_data: Dict,
-        clip_duration: int,
-        max_clips: int = 10
-    ) -> Optional[List[Dict]]:
+        self, whisperx_data: dict, clip_duration: int, max_clips: int = 10
+    ) -> Optional[list[dict]]:
         """
         Genero clips dividiendo el video en segmentos de tiempo fijo
 
@@ -206,9 +204,7 @@ class ClipsGenerator:
         # Calculo duración total
         total_duration = segments[-1].get("end", 0)
 
-        self.logger.info(
-            f"Generando clips de tiempo fijo: {clip_duration}s cada uno"
-        )
+        self.logger.info(f"Generando clips de tiempo fijo: {clip_duration}s cada uno")
         self.logger.info(f"Duración total: {total_duration:.1f}s")
 
         formatted_clips = []
@@ -224,27 +220,25 @@ class ClipsGenerator:
             if duration >= 30:
                 # Extraigo el texto para este rango
                 clip_text = self._get_text_for_timerange(
-                    whisperx_data,
-                    start_time,
-                    end_time
+                    whisperx_data, start_time, end_time
                 )
 
                 # Preview
                 text_preview = (
-                    clip_text[:100] + "..."
-                    if len(clip_text) > 100
-                    else clip_text
+                    clip_text[:100] + "..." if len(clip_text) > 100 else clip_text
                 )
 
-                formatted_clips.append({
-                    "clip_id": clip_id,
-                    "start_time": round(start_time, 2),
-                    "end_time": round(end_time, 2),
-                    "duration": round(duration, 2),
-                    "text_preview": text_preview,
-                    "full_text": clip_text,
-                    "method": "fixed_time"  # Marco que fue generado por tiempo fijo
-                })
+                formatted_clips.append(
+                    {
+                        "clip_id": clip_id,
+                        "start_time": round(start_time, 2),
+                        "end_time": round(end_time, 2),
+                        "duration": round(duration, 2),
+                        "text_preview": text_preview,
+                        "full_text": clip_text,
+                        "method": "fixed_time",  # Marco que fue generado por tiempo fijo
+                    }
+                )
 
                 self.logger.info(
                     f"  Clip {clip_id}: {duration:.1f}s "
@@ -259,13 +253,9 @@ class ClipsGenerator:
 
         return formatted_clips if formatted_clips else None
 
-
     def generate_clips(
-        self,
-        transcript_path: str,
-        min_clips: int = 3,
-        max_clips: int = 10
-    ) -> Optional[List[Dict]]:
+        self, transcript_path: str, min_clips: int = 3, max_clips: int = 10
+    ) -> Optional[list[dict]]:
         """
         Genero clips detectando automáticamente cambios de tema
 
@@ -331,7 +321,7 @@ class ClipsGenerator:
                 return self._generate_fixed_time_clips(
                     whisperx_data=whisperx_data,
                     clip_duration=self.max_clip_duration,
-                    max_clips=max_clips
+                    max_clips=max_clips,
                 )
 
             self.logger.info(f"✓ ClipsAI detectó {len(clips_found)} clips potenciales")
@@ -346,28 +336,24 @@ class ClipsGenerator:
                 duration = end - start
 
                 # Busco el texto correspondiente a este rango de tiempo
-                clip_text = self._get_text_for_timerange(
-                    whisperx_data,
-                    start,
-                    end
-                )
+                clip_text = self._get_text_for_timerange(whisperx_data, start, end)
 
                 # Preview: primeras 100 caracteres para mostrar en UI
                 text_preview = (
-                    clip_text[:100] + "..."
-                    if len(clip_text) > 100
-                    else clip_text
+                    clip_text[:100] + "..." if len(clip_text) > 100 else clip_text
                 )
 
-                formatted_clips.append({
-                    "clip_id": idx,
-                    "start_time": round(start, 2),
-                    "end_time": round(end, 2),
-                    "duration": round(duration, 2),
-                    "text_preview": text_preview,
-                    "full_text": clip_text,
-                    "method": "clipsai"  # Generado por ClipsAI (cambio de tema detectado)
-                })
+                formatted_clips.append(
+                    {
+                        "clip_id": idx,
+                        "start_time": round(start, 2),
+                        "end_time": round(end, 2),
+                        "duration": round(duration, 2),
+                        "text_preview": text_preview,
+                        "full_text": clip_text,
+                        "method": "clipsai",  # Generado por ClipsAI (cambio de tema detectado)
+                    }
+                )
 
                 self.logger.info(
                     f"  Clip {idx}: {duration:.1f}s "
@@ -390,15 +376,12 @@ class ClipsGenerator:
         except Exception as e:
             self.logger.error(f"❌ Error durante generación de clips: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return None
 
-
     def _get_text_for_timerange(
-        self,
-        transcript_data: Dict,
-        start_time: float,
-        end_time: float
+        self, transcript_data: dict, start_time: float, end_time: float
     ) -> str:
         """
         Extraigo el texto de la transcripción en un rango de tiempo específico
@@ -425,7 +408,6 @@ class ClipsGenerator:
 
         return " ".join(clip_text_parts)
 
-
     def _format_time(self, seconds: float) -> str:
         """
         Formateo segundos a MM:SS para logs legibles
@@ -436,12 +418,8 @@ class ClipsGenerator:
         secs = int(seconds % 60)
         return f"{mins:02d}:{secs:02d}"
 
-
     def save_clips_metadata(
-        self,
-        clips: List[Dict],
-        video_id: str,
-        output_path: Optional[str] = None
+        self, clips: list[dict], video_id: str, output_path: Optional[str] = None
     ) -> Optional[str]:
         """
         Guardo la metadata de los clips en un JSON
@@ -470,11 +448,11 @@ class ClipsGenerator:
             "num_clips": len(clips),
             "min_clip_duration": self.min_clip_duration,
             "max_clip_duration": self.max_clip_duration,
-            "clips": clips
+            "clips": clips,
         }
 
         try:
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)
 
             self.logger.info(f"📝 Metadata guardada: {output_file}")
@@ -485,8 +463,7 @@ class ClipsGenerator:
             self.logger.error(f"Error guardando metadata: {e}")
             return None
 
-
-    def load_clips_metadata(self, metadata_path: str) -> Optional[Dict]:
+    def load_clips_metadata(self, metadata_path: str) -> Optional[dict]:
         """
         Cargo metadata de clips previamente generados
 
@@ -496,7 +473,7 @@ class ClipsGenerator:
         - Editar clips manualmente y recargarlos
         """
         try:
-            with open(metadata_path, 'r', encoding='utf-8') as f:
+            with open(metadata_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             self.logger.error(f"Error cargando metadata: {e}")
@@ -509,8 +486,8 @@ def generate_clips_from_transcript(
     min_clips: int = 3,
     max_clips: int = 10,
     min_duration: int = 30,
-    max_duration: int = 90
-) -> Optional[List[Dict]]:
+    max_duration: int = 90,
+) -> Optional[list[dict]]:
     """
     Función de conveniencia para generar clips rápidamente
 
@@ -526,12 +503,9 @@ def generate_clips_from_transcript(
             print(f"  {clip['text_preview']}")
     """
     generator = ClipsGenerator(
-        min_clip_duration=min_duration,
-        max_clip_duration=max_duration
+        min_clip_duration=min_duration, max_clip_duration=max_duration
     )
 
     return generator.generate_clips(
-        transcript_path=transcript_path,
-        min_clips=min_clips,
-        max_clips=max_clips
+        transcript_path=transcript_path, min_clips=min_clips, max_clips=max_clips
     )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for CleanupManager module.
 
@@ -13,7 +12,6 @@ Covers:
 - Preservation of final outputs when not targeted for deletion
 """
 
-import json
 from pathlib import Path
 
 import pytest
@@ -95,9 +93,7 @@ def video_with_artifacts(cleanup_test_dirs, cleanup_manager):
         filename="test_video.mp4",
         video_path=str(video_file),
     )
-    cleanup_manager.state_manager.mark_transcribed(
-        video_key, str(transcript_file)
-    )
+    cleanup_manager.state_manager.mark_transcribed(video_key, str(transcript_file))
     cleanup_manager.state_manager.mark_clips_generated(
         video_key,
         clips=[{"clip_id": 1}],
@@ -245,9 +241,7 @@ class TestDeleteVideoArtifacts:
         """Verify files remain after dry_run=True."""
         video_key = video_with_artifacts["video_key"]
 
-        results = cleanup_manager.delete_video_artifacts(
-            video_key, dry_run=True
-        )
+        results = cleanup_manager.delete_video_artifacts(video_key, dry_run=True)
 
         # All results should report success (simulated)
         assert all(results.values())

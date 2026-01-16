@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Test completo del generador de copys con threshold ajustado
 """
@@ -15,9 +14,9 @@ def test_full_generation():
     """
     Test completo: clasificación → agrupación → generación → guardado
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST: Generación completa de copys (con threshold 0.75)")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     video_id = "AI CDMX Live Stream_gjPVlCHU9OM"
     model = "gemini-2.0-flash-exp"
@@ -26,41 +25,40 @@ def test_full_generation():
     print(f"🤖 Model: {model}")
     print()
 
-    result = generate_copys_for_video(
-        video_id=video_id,
-        model=model
-    )
+    result = generate_copys_for_video(video_id=video_id, model=model)
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("RESULTADO:")
-    print("="*80)
+    print("=" * 80)
 
-    if result['success']:
-        print(f"✅ SUCCESS")
+    if result["success"]:
+        print("✅ SUCCESS")
         print(f"   Total copies: {result['metrics']['total_copies']}")
         print(f"   Avg engagement: {result['metrics']['average_engagement']}/10")
-        print(f"   Avg viral potential: {result['metrics']['average_viral_potential']}/10")
-        print(f"\n   Distribution:")
+        print(
+            f"   Avg viral potential: {result['metrics']['average_viral_potential']}/10"
+        )
+        print("\n   Distribution:")
         print(f"   - Viral: {result['metrics']['distribution']['viral']}")
         print(f"   - Educational: {result['metrics']['distribution']['educational']}")
         print(f"   - Storytelling: {result['metrics']['distribution']['storytelling']}")
         print(f"\n   Output: {result['output_file']}")
 
         # Verificar que ningún copy exceda 150 caracteres
-        from pathlib import Path
         import json
+        from pathlib import Path
 
-        output_path = Path(result['output_file'])
+        output_path = Path(result["output_file"])
         if output_path.exists():
-            with open(output_path, 'r', encoding='utf-8') as f:
+            with open(output_path, encoding="utf-8") as f:
                 data = json.load(f)
 
-            print(f"\n🔍 Validación de longitud de copys:")
+            print("\n🔍 Validación de longitud de copys:")
             over_limit = []
-            for clip in data['clips']:
-                copy_len = len(clip['copy'])
+            for clip in data["clips"]:
+                copy_len = len(clip["copy"])
                 if copy_len > 150:
-                    over_limit.append((clip['clip_id'], copy_len, clip['copy']))
+                    over_limit.append((clip["clip_id"], copy_len, clip["copy"]))
 
             if over_limit:
                 print(f"   ❌ {len(over_limit)} copys exceden 150 caracteres:")
@@ -68,16 +66,18 @@ def test_full_generation():
                     print(f"      Clip {clip_id}: {length} chars")
                     print(f"      Copy: {copy}")
             else:
-                print(f"   ✅ Todos los copys están dentro del límite de 150 caracteres")
+                print(
+                    "   ✅ Todos los copys están dentro del límite de 150 caracteres"
+                )
     else:
-        print(f"❌ FAILED")
+        print("❌ FAILED")
         print(f"   Error: {result.get('error_message', 'Unknown error')}")
-        if 'logs' in result:
-            print(f"\n   Logs:")
-            for log in result['logs']:
+        if "logs" in result:
+            print("\n   Logs:")
+            for log in result["logs"]:
                 print(f"      {log}")
 
-    print("\n" + "="*80 + "\n")
+    print("\n" + "=" * 80 + "\n")
 
     return result
 

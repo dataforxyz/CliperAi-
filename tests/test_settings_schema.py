@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for src/config/settings_schema.py configuration system.
 
@@ -14,7 +13,6 @@ Covers:
 """
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -55,7 +53,6 @@ from src.config.settings_schema import (
     list_app_settings_by_group,
     validate_and_normalize_app_settings,
 )
-
 
 # ============================================================================
 # _validate_type() tests
@@ -761,7 +758,9 @@ class TestStateManagerSettings:
 
         # Pre-populate settings file
         settings_file = tmp_project_dir / "config" / "test_settings.json"
-        settings_file.write_text(json.dumps({"min_clip_duration": 45}), encoding="utf-8")
+        settings_file.write_text(
+            json.dumps({"min_clip_duration": 45}), encoding="utf-8"
+        )
 
         sm = StateManager(
             state_file=str(tmp_project_dir / "temp" / "project_state.json"),
@@ -812,7 +811,7 @@ class TestStateManagerSettings:
         sm.set_setting("video_crf", 18)
 
         # Read file directly to verify persistence
-        with open(settings_file, "r", encoding="utf-8") as f:
+        with open(settings_file, encoding="utf-8") as f:
             saved = json.load(f)
         assert saved["video_crf"] == 18
 

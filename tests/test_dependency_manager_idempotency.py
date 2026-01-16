@@ -33,4 +33,3 @@ def test_dependency_markers_make_ensure_idempotent(tmp_path, monkeypatch):
     result2 = dm.ensure_all_required([spec])
     assert result2.ok
     assert calls["ensure"] == 1
-

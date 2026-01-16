@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests for SubtitleGenerator module.
 
@@ -7,12 +6,8 @@ and edge case handling for subtitle generation from WhisperX transcripts.
 """
 
 import json
-from pathlib import Path
-
-import pytest
 
 from src.subtitle_generator import SubtitleGenerator
-
 
 # ============================================================================
 # INITIALIZATION TESTS
@@ -138,7 +133,9 @@ class TestSplitTextIntoLines:
     def test_multiple_lines_created(self):
         """Long text is split into multiple lines."""
         generator = SubtitleGenerator()
-        text = "This is a longer piece of text that should be split across multiple lines"
+        text = (
+            "This is a longer piece of text that should be split across multiple lines"
+        )
         result = generator._split_text_into_lines(text, max_chars=25)
 
         assert len(result) > 1
@@ -184,7 +181,7 @@ class TestFormatSrtEntry:
     def test_special_characters_preserved(self):
         """Special characters in text are preserved."""
         generator = SubtitleGenerator()
-        text = "He said: \"Hello!\" & waved."
+        text = 'He said: "Hello!" & waved.'
         result = generator._format_srt_entry(1, 0.0, 1.0, text)
 
         assert text in result
@@ -558,7 +555,9 @@ class TestEdgeCases:
         }
 
         transcript_path = tmp_path / "unicode.json"
-        transcript_path.write_text(json.dumps(transcript, ensure_ascii=False), encoding="utf-8")
+        transcript_path.write_text(
+            json.dumps(transcript, ensure_ascii=False), encoding="utf-8"
+        )
 
         output_path = tmp_path / "unicode.srt"
         result = generator.generate_srt_from_transcript(
@@ -583,8 +582,16 @@ class TestEdgeCases:
                     "text": "Word one two three",
                     "words": [
                         {"word": "Word", "start": 0.0, "end": 1.0},
-                        {"word": "one", "start": 0.8, "end": 1.5},  # Overlaps with previous
-                        {"word": "two", "start": 1.3, "end": 2.0},  # Overlaps with previous
+                        {
+                            "word": "one",
+                            "start": 0.8,
+                            "end": 1.5,
+                        },  # Overlaps with previous
+                        {
+                            "word": "two",
+                            "start": 1.3,
+                            "end": 2.0,
+                        },  # Overlaps with previous
                         {"word": "three", "start": 2.0, "end": 3.0},
                     ],
                 }

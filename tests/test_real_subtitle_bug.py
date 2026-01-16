@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Test REAL del bug de subtítulos duplicados
 Usa datos reales del proyecto (transcripción + video)
@@ -52,13 +51,13 @@ def main():
             "clip_id": "test_with_subs",
             "start_time": 30,
             "end_time": 45,  # 15 segundos
-            "text_preview": "Testing subtitle duplication"
+            "text_preview": "Testing subtitle duplication",
         }
     ]
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXPORTANDO CON LOGO + SUBTÍTULOS (Reproducir bug)")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     exported = exporter.export_clips(
         video_path=str(video_path),
@@ -71,7 +70,7 @@ def main():
         add_logo=True,
         logo_path="assets/logo.png",
         logo_position="top-right",
-        logo_scale=0.1
+        logo_scale=0.1,
     )
 
     if not exported or not exported[0]:
@@ -80,13 +79,13 @@ def main():
 
     output_video = Path(exported[0])
     print(f"\n✓ Clip exportado: {output_video}")
-    print(f"\n📋 INSTRUCCIONES PARA VERIFICAR:")
-    print(f"1. Abre el video:")
+    print("\n📋 INSTRUCCIONES PARA VERIFICAR:")
+    print("1. Abre el video:")
     print(f"   open '{output_video}'")
-    print(f"\n2. Observa en los segundos 30-45:")
-    print(f"   - ¿Aparecen subtítulos normalmente (1 vez)?")
-    print(f"   - ¿Aparecen DUPLICADOS (2 veces)?")
-    print(f"   - ¿Al mismo tiempo o con offset?")
+    print("\n2. Observa en los segundos 30-45:")
+    print("   - ¿Aparecen subtítulos normalmente (1 vez)?")
+    print("   - ¿Aparecen DUPLICADOS (2 veces)?")
+    print("   - ¿Al mismo tiempo o con offset?")
 
     return True
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Test individual de cada parte del copy generator.
 
@@ -13,10 +12,10 @@ Uso:
     uv run python tests/test_copy_generation_parts.py
 """
 
-import os
-import sys
 import json
+import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -26,6 +25,7 @@ load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+
 from src.prompts import get_prompt_for_style
 from src.prompts.classifier_prompt import get_classifier_prompt
 
@@ -49,19 +49,21 @@ def test_1_load_clips():
         print(f"✓ Encontrado: {clips_file}")
 
         # Cargar clips
-        with open(clips_file, 'r', encoding='utf-8') as f:
+        with open(clips_file, encoding="utf-8") as f:
             clips_metadata = json.load(f)
 
         # Extraer datos relevantes
         clips_data = []
-        for clip in clips_metadata['clips']:
-            clips_data.append({
-                'clip_id': clip['clip_id'],
-                'start_time': clip['start_time'],
-                'end_time': clip['end_time'],
-                'duration': clip['duration'],
-                'transcript': clip['full_text']
-            })
+        for clip in clips_metadata["clips"]:
+            clips_data.append(
+                {
+                    "clip_id": clip["clip_id"],
+                    "start_time": clip["start_time"],
+                    "end_time": clip["end_time"],
+                    "duration": clip["duration"],
+                    "transcript": clip["full_text"],
+                }
+            )
 
         print(f"✓ Cargados {len(clips_data)} clips")
         print(f"✓ Primer clip ID: {clips_data[0]['clip_id']}")
@@ -70,9 +72,10 @@ def test_1_load_clips():
         return clips_data
 
     except Exception as e:
-        print(f"❌ FAIL: Error cargando clips")
+        print("❌ FAIL: Error cargando clips")
         print(f"   Error: {e}")
         import traceback
+
         print(f"   Traceback:\n{traceback.format_exc()}")
         return None
 
@@ -92,18 +95,15 @@ def test_2_classify_one_clip(clips_data):
         clip = clips_data[0]
 
         # Inicializar LLM
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.7
-        )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
 
         # Prompt del classifier
         classifier_prompt = get_classifier_prompt()
 
         # Preparar input de UN clip
         clip_input = {
-            "clip_id": clip['clip_id'],
-            "transcript": clip['transcript'][:500]  # Primeros 500 chars
+            "clip_id": clip["clip_id"],
+            "transcript": clip["transcript"][:500],  # Primeros 500 chars
         }
 
         user_message = f"""Clasifica este clip en viral/educational/storytelling:
@@ -115,7 +115,7 @@ Responde SOLO con JSON válido (sin markdown):"""
         # Llamar a Gemini
         messages = [
             {"role": "system", "content": classifier_prompt},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": user_message},
         ]
 
         print(f"Clasificando clip {clip['clip_id']}...")
@@ -131,23 +131,26 @@ Responde SOLO con JSON válido (sin markdown):"""
 
         # Parsear JSON
         classification_result = json.loads(response_text)
-        classifications = classification_result.get('classifications', [])
+        classifications = classification_result.get("classifications", [])
 
         if not classifications:
             print("❌ FAIL: No se generaron clasificaciones")
             return None
 
         classification = classifications[0]
-        print(f"✓ Clip {classification['clip_id']} clasificado como: {classification['style']}")
+        print(
+            f"✓ Clip {classification['clip_id']} clasificado como: {classification['style']}"
+        )
         print(f"✓ Confidence: {classification.get('confidence', 'N/A')}")
         print(f"✓ Reason: {classification.get('reason', 'N/A')}")
 
         return classifications
 
     except Exception as e:
-        print(f"❌ FAIL: Error clasificando clip")
+        print("❌ FAIL: Error clasificando clip")
         print(f"   Error: {e}")
         import traceback
+
         print(f"   Traceback:\n{traceback.format_exc()}")
         return None
 
@@ -167,19 +170,16 @@ def test_3_generate_copy_for_one_clip(clips_data, style="viral"):
         clip = clips_data[0]
 
         # Inicializar LLM
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.8
-        )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.8)
 
         # Prompt del estilo
         full_prompt = get_prompt_for_style(style)
 
         # Preparar input de UN clip
         clip_input = {
-            "clip_id": clip['clip_id'],
-            "transcript": clip['transcript'],
-            "duration": clip['duration']
+            "clip_id": clip["clip_id"],
+            "transcript": clip["transcript"],
+            "duration": clip["duration"],
         }
 
         user_message = f"""Genera copies para este 1 clip en estilo {style}:
@@ -191,7 +191,7 @@ Responde SOLO con JSON válido (sin markdown):"""
         # Llamar a Gemini
         messages = [
             {"role": "system", "content": full_prompt},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": user_message},
         ]
 
         print(f"Generando copy para clip {clip['clip_id']} en estilo {style}...")
@@ -208,34 +208,35 @@ Responde SOLO con JSON válido (sin markdown):"""
         # Parsear JSON
         copies_data = json.loads(response_text)
 
-        if 'clips' not in copies_data:
+        if "clips" not in copies_data:
             print("❌ FAIL: Respuesta no tiene campo 'clips'")
             print(f"   Keys en respuesta: {copies_data.keys()}")
             return None
 
-        clips_copies = copies_data['clips']
+        clips_copies = copies_data["clips"]
 
         if not clips_copies:
             print("❌ FAIL: Lista de clips vacía")
             return None
 
         copy = clips_copies[0]
-        print(f"✓ Copy generado:")
+        print("✓ Copy generado:")
         print(f"   Clip ID: {copy['clip_id']}")
         print(f"   Copy: {copy['copy']}")
         print(f"   Engagement: {copy['metadata']['engagement_score']}/10")
         print(f"   Viral potential: {copy['metadata']['viral_potential']}/10")
 
         # Validar que tenga #AICDMX
-        if '#AICDMX' not in copy['copy'].upper():
+        if "#AICDMX" not in copy["copy"].upper():
             print("⚠️  WARNING: El copy no incluye #AICDMX")
 
         return clips_copies
 
     except Exception as e:
-        print(f"❌ FAIL: Error generando copy")
+        print("❌ FAIL: Error generando copy")
         print(f"   Error: {e}")
         import traceback
+
         print(f"   Traceback:\n{traceback.format_exc()}")
         return None
 
@@ -255,10 +256,7 @@ def test_4_generate_copies_batch(clips_data, style="viral", batch_size=5):
         batch = clips_data[:batch_size]
 
         # Inicializar LLM
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.8
-        )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.8)
 
         # Prompt del estilo
         full_prompt = get_prompt_for_style(style)
@@ -266,11 +264,13 @@ def test_4_generate_copies_batch(clips_data, style="viral", batch_size=5):
         # Preparar input del batch
         clips_input = []
         for clip in batch:
-            clips_input.append({
-                "clip_id": clip['clip_id'],
-                "transcript": clip['transcript'],
-                "duration": clip['duration']
-            })
+            clips_input.append(
+                {
+                    "clip_id": clip["clip_id"],
+                    "transcript": clip["transcript"],
+                    "duration": clip["duration"],
+                }
+            )
 
         user_message = f"""Genera copies para estos {len(clips_input)} clips en estilo {style}:
 
@@ -281,7 +281,7 @@ Responde SOLO con JSON válido (sin markdown):"""
         # Llamar a Gemini
         messages = [
             {"role": "system", "content": full_prompt},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": user_message},
         ]
 
         print(f"Generando copies para {len(batch)} clips en estilo {style}...")
@@ -298,12 +298,12 @@ Responde SOLO con JSON válido (sin markdown):"""
         # Parsear JSON
         copies_data = json.loads(response_text)
 
-        if 'clips' not in copies_data:
+        if "clips" not in copies_data:
             print("❌ FAIL: Respuesta no tiene campo 'clips'")
             print(f"   Keys en respuesta: {copies_data.keys()}")
             return None
 
-        clips_copies = copies_data['clips']
+        clips_copies = copies_data["clips"]
 
         if not clips_copies:
             print("❌ FAIL: Lista de clips vacía")
@@ -320,9 +320,10 @@ Responde SOLO con JSON válido (sin markdown):"""
         return clips_copies
 
     except Exception as e:
-        print(f"❌ FAIL: Error generando copies en batch")
+        print("❌ FAIL: Error generando copies en batch")
         print(f"   Error: {e}")
         import traceback
+
         print(f"   Traceback:\n{traceback.format_exc()}")
         return None
 

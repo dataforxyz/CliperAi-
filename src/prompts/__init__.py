@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Prompts Module - AI Copy Generation Templates
 
@@ -15,10 +14,14 @@ Estilos disponibles:
 - storytelling: Narrativa personal, conexión emocional
 """
 
-from .base_prompts import build_base_system_prompt, SYSTEM_PROMPT, JSON_FORMAT_INSTRUCTIONS
-from .viral_prompt import get_viral_prompt
+from .base_prompts import (
+    JSON_FORMAT_INSTRUCTIONS,
+    SYSTEM_PROMPT,
+    build_base_system_prompt,
+)
 from .educational_prompt import get_educational_prompt
 from .storytelling_prompt import get_storytelling_prompt
+from .viral_prompt import get_viral_prompt
 
 
 def get_prompt_for_style(style: str = "viral") -> str:
@@ -47,7 +50,7 @@ def get_prompt_for_style(style: str = "viral") -> str:
     style_prompts = {
         "viral": get_viral_prompt,
         "educational": get_educational_prompt,
-        "storytelling": get_storytelling_prompt
+        "storytelling": get_storytelling_prompt,
     }
 
     # Valido que el estilo sea correcto
@@ -89,12 +92,12 @@ def get_available_styles() -> list[str]:
 
 # Exports principales
 __all__ = [
-    "get_prompt_for_style",
-    "get_available_styles",
-    "build_base_system_prompt",
-    "SYSTEM_PROMPT",
     "JSON_FORMAT_INSTRUCTIONS",
-    "get_viral_prompt",
+    "SYSTEM_PROMPT",
+    "build_base_system_prompt",
+    "get_available_styles",
     "get_educational_prompt",
-    "get_storytelling_prompt"
+    "get_prompt_for_style",
+    "get_storytelling_prompt",
+    "get_viral_prompt",
 ]

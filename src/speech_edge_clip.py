@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Speech-edge clipping utilities.
 
@@ -13,9 +12,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 Seconds = float
 
@@ -36,7 +38,9 @@ class SpeechEdgeTrimConfig:
     trim_ms_end: int = 0
 
 
-def load_transcript_segments(transcript_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def load_transcript_segments(
+    transcript_path: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Load a WhisperX transcript JSON and return `(segments, word_segments)`.
 
@@ -46,7 +50,7 @@ def load_transcript_segments(transcript_path: str) -> Tuple[List[Dict[str, Any]]
     if not transcript_file.exists():
         raise FileNotFoundError(f"Transcript not found: {transcript_file}")
 
-    with open(transcript_file, "r", encoding="utf-8") as f:
+    with open(transcript_file, encoding="utf-8") as f:
         data = json.load(f)
 
     segments = data.get("segments") or []
@@ -58,7 +62,9 @@ def load_transcript_segments(transcript_path: str) -> Tuple[List[Dict[str, Any]]
     return segments, word_segments
 
 
-def _iter_words(segments: List[Dict[str, Any]], word_segments: Optional[List[Dict[str, Any]]] = None) -> Iterable[Dict[str, Any]]:
+def _iter_words(
+    segments: list[dict[str, Any]], word_segments: list[dict[str, Any]] | None = None
+) -> Iterable[dict[str, Any]]:
     for seg in segments:
         words = seg.get("words") if isinstance(seg, dict) else None
         if isinstance(words, list):
@@ -71,7 +77,7 @@ def _iter_words(segments: List[Dict[str, Any]], word_segments: Optional[List[Dic
                 yield w
 
 
-def _coerce_float(value: Any) -> Optional[float]:
+def _coerce_float(value: Any) -> float | None:
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -80,12 +86,12 @@ def _coerce_float(value: Any) -> Optional[float]:
 
 
 def find_speech_boundaries(
-    segments: List[Dict[str, Any]],
+    segments: list[dict[str, Any]],
     clip_start: Seconds,
     clip_end: Seconds,
     *,
-    word_segments: Optional[List[Dict[str, Any]]] = None,
-) -> Optional[Tuple[Seconds, Seconds]]:
+    word_segments: list[dict[str, Any]] | None = None,
+) -> tuple[Seconds, Seconds] | None:
     """
     Find the first and last speech timestamps inside a clip window.
 
@@ -94,8 +100,8 @@ def find_speech_boundaries(
     if clip_end <= clip_start:
         return None
 
-    first: Optional[float] = None
-    last: Optional[float] = None
+    first: float | None = None
+    last: float | None = None
 
     for word in _iter_words(segments, word_segments):
         word_start = _coerce_float(word.get("start"))
@@ -131,7 +137,7 @@ def compute_speech_aware_boundaries(
     clip_end: Seconds,
     trim_ms_start: int = 0,
     trim_ms_end: int = 0,
-) -> Tuple[Seconds, Seconds]:
+) -> tuple[Seconds, Seconds]:
     """
     Trim excess silence from a clip window using WhisperX word timestamps.
 
@@ -153,7 +159,9 @@ def compute_speech_aware_boundaries(
         logger.debug(f"Speech-aware trimming disabled (failed to load transcript): {e}")
         return clip_start, clip_end
 
-    speech = find_speech_boundaries(segments, clip_start, clip_end, word_segments=word_segments)
+    speech = find_speech_boundaries(
+        segments, clip_start, clip_end, word_segments=word_segments
+    )
     if not speech:
         return clip_start, clip_end
 
@@ -185,7 +193,7 @@ def clip_speech_edges(
     end_time: Seconds,
     trim_ms_start: int = 0,
     trim_ms_end: int = 0,
-) -> Tuple[Seconds, Seconds]:
+) -> tuple[Seconds, Seconds]:
     """
     Compute adjusted clip boundaries by trimming a fixed amount at both speech edges.
 

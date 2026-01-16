@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Video Namer - Genera nombres descriptivos para videos a partir de transcripciones
 
@@ -13,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from src.utils.logger import get_logger
 
@@ -21,11 +20,56 @@ logger = get_logger(__name__)
 
 # Palabras comunes a filtrar al inicio (en ingles y espanol)
 FILLER_WORDS = {
-    "um", "uh", "like", "so", "well", "okay", "ok", "right", "yeah", "yes",
-    "the", "a", "an", "and", "or", "but", "i", "you", "we", "they", "it",
-    "este", "pues", "bueno", "entonces", "mira", "oye", "eh", "osea",
-    "el", "la", "los", "las", "un", "una", "y", "o", "pero", "que", "de",
-    "en", "es", "no", "si", "como", "para", "por", "con", "se", "al",
+    "um",
+    "uh",
+    "like",
+    "so",
+    "well",
+    "okay",
+    "ok",
+    "right",
+    "yeah",
+    "yes",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "i",
+    "you",
+    "we",
+    "they",
+    "it",
+    "este",
+    "pues",
+    "bueno",
+    "entonces",
+    "mira",
+    "oye",
+    "eh",
+    "osea",
+    "el",
+    "la",
+    "los",
+    "las",
+    "un",
+    "una",
+    "y",
+    "o",
+    "pero",
+    "que",
+    "de",
+    "en",
+    "es",
+    "no",
+    "si",
+    "como",
+    "para",
+    "por",
+    "con",
+    "se",
+    "al",
 }
 
 
@@ -82,7 +126,11 @@ def _extract_first_words(transcript_data: dict, word_count: int = 5) -> str:
                 word = word_obj.get("word", "").strip().lower()
                 # Elimina puntuacion al final
                 word_clean = re.sub(r"[^\w]", "", word)
-                if word_clean and word_clean not in FILLER_WORDS and len(word_clean) > 1:
+                if (
+                    word_clean
+                    and word_clean not in FILLER_WORDS
+                    and len(word_clean) > 1
+                ):
                     collected_words.append(word_clean)
                     if len(collected_words) >= word_count:
                         break
@@ -91,7 +139,11 @@ def _extract_first_words(transcript_data: dict, word_count: int = 5) -> str:
             text = segment.get("text", "").strip()
             for word in text.split():
                 word_clean = re.sub(r"[^\w]", "", word.lower())
-                if word_clean and word_clean not in FILLER_WORDS and len(word_clean) > 1:
+                if (
+                    word_clean
+                    and word_clean not in FILLER_WORDS
+                    and len(word_clean) > 1
+                ):
                     collected_words.append(word_clean)
                     if len(collected_words) >= word_count:
                         break
@@ -102,7 +154,7 @@ def _extract_first_words(transcript_data: dict, word_count: int = 5) -> str:
     return " ".join(collected_words)
 
 
-def _generate_llm_summary(transcript_data: dict, max_chars: int = 40) -> Optional[str]:
+def _generate_llm_summary(transcript_data: dict, max_chars: int = 40) -> str | None:
     """
     Usa Gemini para generar un titulo descriptivo corto.
 
@@ -164,7 +216,7 @@ Respond ONLY with the title, no quotes or explanations."""
 
 def generate_video_name(
     *,
-    transcript_path: Optional[str] = None,
+    transcript_path: str | None = None,
     original_filename: str,
     method: Literal["filename", "first_words", "llm_summary"] = "filename",
     max_chars: int = 40,
@@ -195,7 +247,7 @@ def generate_video_name(
         return fallback_name
 
     try:
-        with open(transcript_path, "r", encoding="utf-8") as f:
+        with open(transcript_path, encoding="utf-8") as f:
             transcript_data = json.load(f)
     except Exception as e:
         logger.warning(f"Error loading transcript: {e}")

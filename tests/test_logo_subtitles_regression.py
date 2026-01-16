@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Test: Logo + Subtitles Together (Regression Test)
 
@@ -32,7 +31,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # - Una transcripción con subtítulos
 
 
-def create_test_video(output_path: Path, duration: int = 5, width: int = 1920, height: int = 1080):
+def create_test_video(
+    output_path: Path, duration: int = 5, width: int = 1920, height: int = 1080
+):
     """
     Crea un video de prueba simple usando FFmpeg
 
@@ -43,13 +44,18 @@ def create_test_video(output_path: Path, duration: int = 5, width: int = 1920, h
     """
     cmd = [
         "ffmpeg",
-        "-f", "lavfi",
-        "-i", f"color=c=blue:s={width}x{height}:d={duration}",
-        "-f", "lavfi",
-        "-i", f"sine=f=1000:d={duration}",
-        "-pix_fmt", "yuv420p",
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c=blue:s={width}x{height}:d={duration}",
+        "-f",
+        "lavfi",
+        "-i",
+        f"sine=f=1000:d={duration}",
+        "-pix_fmt",
+        "yuv420p",
         "-y",
-        str(output_path)
+        str(output_path),
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -66,12 +72,16 @@ def create_test_logo(output_path: Path, width: int = 200, height: int = 200):
     """
     cmd = [
         "ffmpeg",
-        "-f", "lavfi",
-        "-i", f"color=c=red:s={width}x{height}:d=1",
-        "-pix_fmt", "rgba",
-        "-vframes", "1",
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c=red:s={width}x{height}:d=1",
+        "-pix_fmt",
+        "rgba",
+        "-vframes",
+        "1",
         "-y",
-        str(output_path)
+        str(output_path),
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -106,7 +116,7 @@ def create_test_transcript(output_path: Path):
                     {"word": "is", "start": 0.5, "end": 0.8},
                     {"word": "a", "start": 0.8, "end": 1.0},
                     {"word": "test", "start": 1.0, "end": 2.0},
-                ]
+                ],
             },
             {
                 "id": 1,
@@ -124,12 +134,12 @@ def create_test_transcript(output_path: Path):
                     {"word": "subtitle", "start": 3.2, "end": 4.0},
                     {"word": "duplication", "start": 4.0, "end": 4.7},
                     {"word": "bug", "start": 4.7, "end": 5.0},
-                ]
-            }
+                ],
+            },
         ]
     }
 
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(transcript, f, indent=2)
 
     print(f"✓ Test transcript created: {output_path}")
@@ -141,9 +151,9 @@ def test_logo_only():
     Test Case 1: Solo logo (sin subtítulos)
     Debe funcionar sin problemas
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: Logo Only")
-    print("="*70)
+    print("=" * 70)
 
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
@@ -154,14 +164,17 @@ def test_logo_only():
 
         # Exportar con logo
         from src.video_exporter import VideoExporter
+
         exporter = VideoExporter(output_dir=str(tmpdir / "output"))
 
-        clips = [{
-            'clip_id': '1',
-            'start_time': 0,
-            'end_time': 5,
-            'text_preview': 'Test clip'
-        }]
+        clips = [
+            {
+                "clip_id": "1",
+                "start_time": 0,
+                "end_time": 5,
+                "text_preview": "Test clip",
+            }
+        ]
 
         try:
             result = exporter.export_clips(
@@ -172,7 +185,7 @@ def test_logo_only():
                 logo_path=str(logo),
                 logo_position="top-right",
                 logo_scale=0.1,
-                add_subtitles=False  # Sin subtítulos
+                add_subtitles=False,  # Sin subtítulos
             )
 
             if result and Path(result[0]).exists():
@@ -192,9 +205,9 @@ def test_subtitles_only():
     Test Case 2: Solo subtítulos (sin logo)
     Debe funcionar sin problemas
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: Subtitles Only")
-    print("="*70)
+    print("=" * 70)
 
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
@@ -205,14 +218,17 @@ def test_subtitles_only():
 
         # Exportar con subtítulos
         from src.video_exporter import VideoExporter
+
         exporter = VideoExporter(output_dir=str(tmpdir / "output"))
 
-        clips = [{
-            'clip_id': '1',
-            'start_time': 0,
-            'end_time': 5,
-            'text_preview': 'Test clip'
-        }]
+        clips = [
+            {
+                "clip_id": "1",
+                "start_time": 0,
+                "end_time": 5,
+                "text_preview": "Test clip",
+            }
+        ]
 
         try:
             result = exporter.export_clips(
@@ -222,7 +238,7 @@ def test_subtitles_only():
                 add_subtitles=True,
                 transcript_path=str(transcript),
                 subtitle_style="default",
-                add_logo=False  # Sin logo
+                add_logo=False,  # Sin logo
             )
 
             if result and Path(result[0]).exists():
@@ -248,9 +264,9 @@ def test_logo_and_subtitles():
     NOTA: Este test crear el archivo, pero la verificación visual de
     duplicación requiere inspección manual o análisis de frames.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: Logo + Subtitles (REGRESSION TEST)")
-    print("="*70)
+    print("=" * 70)
     print("⚠️  CRITICAL: Este test verifica que el bug de duplicación está resuelto")
 
     with TemporaryDirectory() as tmpdir:
@@ -263,14 +279,17 @@ def test_logo_and_subtitles():
 
         # Exportar con AMBOS logo y subtítulos
         from src.video_exporter import VideoExporter
+
         exporter = VideoExporter(output_dir=str(tmpdir / "output"))
 
-        clips = [{
-            'clip_id': '1',
-            'start_time': 0,
-            'end_time': 5,
-            'text_preview': 'Test clip'
-        }]
+        clips = [
+            {
+                "clip_id": "1",
+                "start_time": 0,
+                "end_time": 5,
+                "text_preview": "Test clip",
+            }
+        ]
 
         try:
             print("\nExportando con logo + subtítulos...")
@@ -284,7 +303,7 @@ def test_logo_and_subtitles():
                 logo_scale=0.1,
                 add_subtitles=True,
                 transcript_path=str(transcript),
-                subtitle_style="default"
+                subtitle_style="default",
             )
 
             if result and Path(result[0]).exists():
@@ -293,18 +312,27 @@ def test_logo_and_subtitles():
                 print(f"✓ File size: {output_file.stat().st_size / 1024:.1f} KB")
 
                 # Verificación básica: El archivo debe tener audio y video streams
-                cmd = ["ffprobe", "-v", "error", "-show_entries",
-                       "stream=codec_type", "-of", "default=noprint_wrappers=1",
-                       str(output_file)]
+                cmd = [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=codec_type",
+                    "-of",
+                    "default=noprint_wrappers=1",
+                    str(output_file),
+                ]
 
-                result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, check=False
+                )
 
                 if "video" in result.stdout and "audio" in result.stdout:
                     print("✓ PASS: File has both video and audio streams")
                     print("\n⚠️  MANUAL VERIFICATION NEEDED:")
                     print(f"   1. Open the output file: {output_file}")
-                    print(f"   2. Check that subtitles appear ONCE (not duplicated)")
-                    print(f"   3. Check that logo is visible in top-right corner")
+                    print("   2. Check that subtitles appear ONCE (not duplicated)")
+                    print("   3. Check that logo is visible in top-right corner")
                     return True
                 else:
                     print("✗ FAIL: Missing streams")
@@ -317,6 +345,7 @@ def test_logo_and_subtitles():
         except Exception as e:
             print(f"✗ FAIL: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -325,9 +354,9 @@ def main():
     """
     Ejecutar todos los tests
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("REGRESSION TEST: Logo + Subtitles Bug Fix")
-    print("="*70)
+    print("=" * 70)
     print("\nThis test verifies the fix for subtitle duplication when")
     print("logo and subtitles are enabled simultaneously.")
     print("\nImplementation: -sn flag in Step 1 to discard subtitle streams")
@@ -343,12 +372,12 @@ def main():
     results = {
         "test_1_logo_only": test_logo_only(),
         "test_2_subtitles_only": test_subtitles_only(),
-        "test_3_logo_and_subtitles": test_logo_and_subtitles()
+        "test_3_logo_and_subtitles": test_logo_and_subtitles(),
     }
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for test_name, passed in results.items():
         status = "✓ PASS" if passed else "✗ FAIL"

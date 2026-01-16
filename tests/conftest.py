@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Shared pytest fixtures for the CLIPER test suite.
 """
@@ -11,7 +10,6 @@ from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
-
 
 # ============================================================================
 # ASYNC HELPER

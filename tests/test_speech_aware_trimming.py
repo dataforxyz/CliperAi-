@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 import json
 
@@ -23,7 +22,9 @@ def _write_transcript(tmp_path, words):
 
 
 def test_speech_aware_trimming_keeps_silence_within_buffer(tmp_path):
-    transcript_path = _write_transcript(tmp_path, [{"word": "hi", "start": 0.5, "end": 0.7}])
+    transcript_path = _write_transcript(
+        tmp_path, [{"word": "hi", "start": 0.5, "end": 0.7}]
+    )
     start, end = compute_speech_aware_boundaries(
         transcript_path=transcript_path,
         clip_start=0.0,
@@ -36,7 +37,9 @@ def test_speech_aware_trimming_keeps_silence_within_buffer(tmp_path):
 
 
 def test_speech_aware_trimming_trims_to_buffer(tmp_path):
-    transcript_path = _write_transcript(tmp_path, [{"word": "hi", "start": 2.0, "end": 2.2}])
+    transcript_path = _write_transcript(
+        tmp_path, [{"word": "hi", "start": 2.0, "end": 2.2}]
+    )
     start, end = compute_speech_aware_boundaries(
         transcript_path=transcript_path,
         clip_start=0.0,
@@ -63,7 +66,9 @@ def test_speech_aware_trimming_no_speech_noop(tmp_path):
 
 def test_speech_aware_trimming_does_not_trim_into_overlapping_word(tmp_path):
     # Word overlaps clip start, so speech is "already happening" at clip_start.
-    transcript_path = _write_transcript(tmp_path, [{"word": "hi", "start": 1.0, "end": 2.0}])
+    transcript_path = _write_transcript(
+        tmp_path, [{"word": "hi", "start": 1.0, "end": 2.0}]
+    )
     start, end = compute_speech_aware_boundaries(
         transcript_path=transcript_path,
         clip_start=1.5,
@@ -73,4 +78,3 @@ def test_speech_aware_trimming_does_not_trim_into_overlapping_word(tmp_path):
     )
     assert start == 1.5
     assert end == 3.0
-

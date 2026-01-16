@@ -1,17 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 Tests for ClipsGenerator - Automatic clip segmentation using ClipsAI
 """
 
 import json
 from pathlib import Path
-from typing import Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.clips_generator import ClipsGenerator, generate_clips_from_transcript
-
 
 # ============================================================================
 # MOCK FIXTURES
@@ -46,7 +43,7 @@ def mock_transcription():
 
 
 @pytest.fixture
-def transcript_with_words() -> Dict:
+def transcript_with_words() -> dict:
     """WhisperX transcript with word-level timestamps."""
     return {
         "video_id": "test_video_001",
@@ -106,7 +103,7 @@ def transcript_with_words() -> Dict:
 
 
 @pytest.fixture
-def transcript_without_words() -> Dict:
+def transcript_without_words() -> dict:
     """WhisperX transcript without word-level timestamps (segment-only)."""
     return {
         "video_id": "test_video_002",
@@ -119,22 +116,24 @@ def transcript_without_words() -> Dict:
 
 
 @pytest.fixture
-def long_transcript() -> Dict:
+def long_transcript() -> dict:
     """Long transcript for testing fixed time clip generation."""
     segments = []
     for i in range(20):
         start = i * 10.0
         end = start + 9.5
-        segments.append({
-            "start": start,
-            "end": end,
-            "text": f"Segment number {i + 1} with some content",
-            "words": [
-                {"word": f"Segment", "start": start, "end": start + 1.0},
-                {"word": "number", "start": start + 1.1, "end": start + 2.0},
-                {"word": str(i + 1), "start": start + 2.1, "end": start + 3.0},
-            ],
-        })
+        segments.append(
+            {
+                "start": start,
+                "end": end,
+                "text": f"Segment number {i + 1} with some content",
+                "words": [
+                    {"word": "Segment", "start": start, "end": start + 1.0},
+                    {"word": "number", "start": start + 1.1, "end": start + 2.0},
+                    {"word": str(i + 1), "start": start + 2.1, "end": start + 3.0},
+                ],
+            }
+        )
     return {
         "video_id": "long_video",
         "language": "en",
@@ -167,11 +166,10 @@ class TestClipsGeneratorInit:
     def test_init_creates_clip_finder(self):
         """ClipsGenerator creates ClipFinder with correct parameters."""
         with patch("src.clips_generator.ClipFinder") as mock_class:
-            generator = ClipsGenerator(min_clip_duration=20, max_clip_duration=60)
+            ClipsGenerator(min_clip_duration=20, max_clip_duration=60)
 
             mock_class.assert_called_once_with(
-                min_clip_duration=20,
-                max_clip_duration=60
+                min_clip_duration=20, max_clip_duration=60
             )
 
 
@@ -189,9 +187,7 @@ class TestLoadTranscript:
         """_load_transcript loads valid JSON transcript successfully."""
         # Create transcript file
         transcript_path = tmp_project_dir / "temp" / "test_transcript.json"
-        transcript_path.write_text(
-            json.dumps(transcript_with_words), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(transcript_with_words), encoding="utf-8")
 
         generator = ClipsGenerator()
         result = generator._load_transcript(str(transcript_path))
@@ -283,11 +279,7 @@ class TestConvertToClipsaiFormat:
 
     def test_convert_default_language(self, mock_clip_finder, mock_transcription):
         """_convert_to_clipsai_format uses 'en' as default language."""
-        transcript_no_lang = {
-            "segments": [
-                {"start": 0.0, "end": 5.0, "text": "Test"}
-            ]
-        }
+        transcript_no_lang = {"segments": [{"start": 0.0, "end": 5.0, "text": "Test"}]}
         generator = ClipsGenerator()
         generator._convert_to_clipsai_format(transcript_no_lang)
 
@@ -431,9 +423,7 @@ class TestGenerateClips:
         """generate_clips returns formatted clips when ClipFinder finds clips."""
         # Setup transcript file
         transcript_path = tmp_project_dir / "temp" / "transcript.json"
-        transcript_path.write_text(
-            json.dumps(transcript_with_words), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(transcript_with_words), encoding="utf-8")
 
         # Create mock clips
         mock_clip1 = MagicMock()
@@ -458,9 +448,7 @@ class TestGenerateClips:
         assert result[0]["duration"] == 45.0
         assert result[0]["method"] == "clipsai"
 
-    def test_generate_clips_missing_transcript(
-        self, tmp_project_dir, mock_clip_finder
-    ):
+    def test_generate_clips_missing_transcript(self, tmp_project_dir, mock_clip_finder):
         """generate_clips returns None when transcript file is missing."""
         generator = ClipsGenerator()
         result = generator.generate_clips("/nonexistent/transcript.json")
@@ -472,9 +460,7 @@ class TestGenerateClips:
     ):
         """generate_clips falls back to fixed time clips when ClipFinder returns empty."""
         transcript_path = tmp_project_dir / "temp" / "transcript.json"
-        transcript_path.write_text(
-            json.dumps(long_transcript), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(long_transcript), encoding="utf-8")
 
         # ClipFinder returns empty list
         mock_clip_finder.find_clips.return_value = []
@@ -493,9 +479,7 @@ class TestGenerateClips:
     ):
         """generate_clips respects max_clips parameter."""
         transcript_path = tmp_project_dir / "temp" / "transcript.json"
-        transcript_path.write_text(
-            json.dumps(transcript_with_words), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(transcript_with_words), encoding="utf-8")
 
         # Create many mock clips
         mock_clips = []
@@ -518,9 +502,7 @@ class TestGenerateClips:
     ):
         """generate_clips logs warning when fewer clips than min_clips are found."""
         transcript_path = tmp_project_dir / "temp" / "transcript.json"
-        transcript_path.write_text(
-            json.dumps(transcript_with_words), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(transcript_with_words), encoding="utf-8")
 
         mock_clip = MagicMock()
         mock_clip.start_time = 0.0
@@ -542,9 +524,7 @@ class TestGenerateClips:
     ):
         """generate_clips includes text_preview and full_text in clip data."""
         transcript_path = tmp_project_dir / "temp" / "transcript.json"
-        transcript_path.write_text(
-            json.dumps(transcript_with_words), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(transcript_with_words), encoding="utf-8")
 
         mock_clip = MagicMock()
         mock_clip.start_time = 0.0
@@ -605,9 +585,7 @@ class TestGenerateFixedTimeClips:
         """_generate_fixed_time_clips skips clips shorter than 30 seconds."""
         # Create a transcript with total duration less than 60s
         short_transcript = {
-            "segments": [
-                {"start": 0.0, "end": 25.0, "text": "Short segment"}
-            ]
+            "segments": [{"start": 0.0, "end": 25.0, "text": "Short segment"}]
         }
 
         generator = ClipsGenerator()
@@ -618,9 +596,7 @@ class TestGenerateFixedTimeClips:
         # Should return None because the only possible clip is < 30s
         assert result is None
 
-    def test_fixed_time_clips_includes_text(
-        self, mock_clip_finder, long_transcript
-    ):
+    def test_fixed_time_clips_includes_text(self, mock_clip_finder, long_transcript):
         """_generate_fixed_time_clips extracts text for each clip."""
         generator = ClipsGenerator()
         result = generator._generate_fixed_time_clips(
@@ -641,14 +617,10 @@ class TestGenerateFixedTimeClips:
 class TestClipsMetadataPersistence:
     """Tests for saving and loading clip metadata."""
 
-    def test_save_clips_metadata_default_path(
-        self, tmp_project_dir, mock_clip_finder
-    ):
+    def test_save_clips_metadata_default_path(self, tmp_project_dir, mock_clip_finder):
         """save_clips_metadata saves to default temp/{video_id}_clips.json."""
         generator = ClipsGenerator()
-        clips = [
-            {"clip_id": 1, "start_time": 0.0, "end_time": 45.0, "duration": 45.0}
-        ]
+        clips = [{"clip_id": 1, "start_time": 0.0, "end_time": 45.0, "duration": 45.0}]
 
         result_path = generator.save_clips_metadata(clips, "test_video_001")
 
@@ -656,16 +628,14 @@ class TestClipsMetadataPersistence:
         assert Path(result_path).exists()
 
         # Verify contents
-        with open(result_path, "r", encoding="utf-8") as f:
+        with open(result_path, encoding="utf-8") as f:
             saved_data = json.load(f)
 
         assert saved_data["video_id"] == "test_video_001"
         assert saved_data["num_clips"] == 1
         assert len(saved_data["clips"]) == 1
 
-    def test_save_clips_metadata_custom_path(
-        self, tmp_project_dir, mock_clip_finder
-    ):
+    def test_save_clips_metadata_custom_path(self, tmp_project_dir, mock_clip_finder):
         """save_clips_metadata saves to custom output path."""
         generator = ClipsGenerator()
         clips = [{"clip_id": 1, "duration": 45.0}]
@@ -687,7 +657,7 @@ class TestClipsMetadataPersistence:
 
         result_path = generator.save_clips_metadata(clips, "test_video")
 
-        with open(result_path, "r", encoding="utf-8") as f:
+        with open(result_path, encoding="utf-8") as f:
             saved_data = json.load(f)
 
         assert saved_data["min_clip_duration"] == 20
@@ -708,9 +678,7 @@ class TestClipsMetadataPersistence:
         assert loaded_data["video_id"] == "test_video"
         assert len(loaded_data["clips"]) == 2
 
-    def test_load_clips_metadata_missing_file(
-        self, tmp_project_dir, mock_clip_finder
-    ):
+    def test_load_clips_metadata_missing_file(self, tmp_project_dir, mock_clip_finder):
         """load_clips_metadata returns None for non-existent file."""
         generator = ClipsGenerator()
         result = generator.load_clips_metadata("/nonexistent/clips.json")
@@ -769,9 +737,7 @@ class TestGenerateClipsFromTranscript:
     ):
         """generate_clips_from_transcript creates generator and calls generate_clips."""
         transcript_path = tmp_project_dir / "temp" / "transcript.json"
-        transcript_path.write_text(
-            json.dumps(transcript_with_words), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(transcript_with_words), encoding="utf-8")
 
         mock_clip = MagicMock()
         mock_clip.start_time = 0.0
@@ -789,9 +755,7 @@ class TestGenerateClipsFromTranscript:
     ):
         """generate_clips_from_transcript passes custom parameters correctly."""
         transcript_path = tmp_project_dir / "temp" / "transcript.json"
-        transcript_path.write_text(
-            json.dumps(transcript_with_words), encoding="utf-8"
-        )
+        transcript_path.write_text(json.dumps(transcript_with_words), encoding="utf-8")
 
         with patch("src.clips_generator.ClipFinder") as mock_finder_class:
             mock_instance = MagicMock()
@@ -809,8 +773,7 @@ class TestGenerateClipsFromTranscript:
 
             # Verify ClipFinder was created with custom duration parameters
             mock_finder_class.assert_called_once_with(
-                min_clip_duration=15,
-                max_clip_duration=120
+                min_clip_duration=15, max_clip_duration=120
             )
 
     def test_helper_function_returns_none_on_error(self, tmp_project_dir):

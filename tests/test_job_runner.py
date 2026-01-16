@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Comprehensive pytest tests for JobRunner.
 
@@ -15,15 +14,18 @@ Tests cover:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.events import JobStatusEvent, LogEvent, LogLevel, ProgressEvent, StateEvent
+from src.core.events import (
+    JobStatusEvent,
+    LogEvent,
+    LogLevel,
+    ProgressEvent,
+)
 from src.core.job_runner import JobRunner
-from src.core.models import JobSpec, JobState, JobStatus, JobStep
-
+from src.core.models import JobSpec, JobState, JobStep
 
 # ============================================================================
 # FIXTURES
@@ -50,7 +52,7 @@ def event_collector():
     """
     Provide an emit callback that captures all emitted events.
     """
-    events: List[object] = []
+    events: list[object] = []
 
     def emit(event: object) -> None:
         events.append(event)
@@ -105,7 +107,7 @@ class TestRunJobEventEmission:
 
     def test_run_job_emits_started_event(self, job_runner, tmp_project_dir):
         """run_job emits JobStatusEvent with JobState.RUNNING on job start."""
-        runner, events, sm = job_runner
+        runner, events, _sm = job_runner
         job = JobSpec(
             job_id="test-started",
             video_ids=["vid1"],
@@ -123,7 +125,7 @@ class TestRunJobEventEmission:
 
     def test_run_job_emits_finished_ok_event(self, job_runner, tmp_project_dir):
         """run_job emits JobStatusEvent with JobState.SUCCEEDED on completion."""
-        runner, events, sm = job_runner
+        runner, events, _sm = job_runner
         job = JobSpec(
             job_id="test-finished",
             video_ids=["vid1"],
@@ -142,7 +144,7 @@ class TestRunJobEventEmission:
 
     def test_run_job_emits_progress_events(self, job_runner, tmp_project_dir):
         """run_job emits ProgressEvent before and after each step."""
-        runner, events, sm = job_runner
+        runner, events, _sm = job_runner
 
         # Mock transcription step to prevent actual execution
         with patch.object(runner, "_step_transcribe"):
@@ -168,10 +170,12 @@ class TestRunJobEventEmission:
 
     def test_run_job_failure_emits_error_events(self, job_runner, tmp_project_dir):
         """run_job emits LogEvent and JobStatusEvent with FAILED on exception."""
-        runner, events, sm = job_runner
+        runner, events, _sm = job_runner
 
         # Make transcription step raise an exception
-        with patch.object(runner, "_step_transcribe", side_effect=RuntimeError("Test error")):
+        with patch.object(
+            runner, "_step_transcribe", side_effect=RuntimeError("Test error")
+        ):
             job = JobSpec(
                 job_id="test-failure",
                 video_ids=["vid1"],
@@ -181,7 +185,9 @@ class TestRunJobEventEmission:
             result = runner.run_job(job)
 
         # Should have error log event
-        log_events = [e for e in events if isinstance(e, LogEvent) and e.level == LogLevel.ERROR]
+        log_events = [
+            e for e in events if isinstance(e, LogEvent) and e.level == LogLevel.ERROR
+        ]
         assert len(log_events) >= 1
         assert "Test error" in log_events[-1].message
 
@@ -202,7 +208,7 @@ class TestRunStepRouting:
 
     def test_run_step_routes_to_transcribe(self, job_runner, tmp_project_dir):
         """_run_step calls _step_transcribe for JobStep.TRANSCRIBE."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -222,7 +228,7 @@ class TestRunStepRouting:
 
     def test_run_step_routes_to_generate_clips(self, job_runner, tmp_project_dir):
         """_run_step calls _step_generate_clips for JobStep.GENERATE_CLIPS."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -242,7 +248,7 @@ class TestRunStepRouting:
 
     def test_run_step_routes_to_export_clips(self, job_runner, tmp_project_dir):
         """_run_step calls _step_export_clips for JobStep.EXPORT_CLIPS."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -262,7 +268,7 @@ class TestRunStepRouting:
 
     def test_run_step_routes_to_export_shorts(self, job_runner, tmp_project_dir):
         """_run_step calls _step_export_shorts for JobStep.EXPORT_SHORTS."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -282,7 +288,7 @@ class TestRunStepRouting:
 
     def test_run_step_raises_for_download(self, job_runner, tmp_project_dir):
         """_run_step raises ValueError for JobStep.DOWNLOAD."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -326,7 +332,12 @@ class TestStepSkipBehavior:
 
         # Should have emitted a skip log message
         log_events = [e for e in events if isinstance(e, LogEvent)]
-        skip_logs = [e for e in log_events if "skipping" in e.message.lower() or "already transcribed" in e.message.lower()]
+        skip_logs = [
+            e
+            for e in log_events
+            if "skipping" in e.message.lower()
+            or "already transcribed" in e.message.lower()
+        ]
         assert len(skip_logs) >= 1
 
     def test_generate_clips_skips_when_already_done(self, job_runner, tmp_project_dir):
@@ -352,7 +363,11 @@ class TestStepSkipBehavior:
 
         # Should have emitted a skip log message
         log_events = [e for e in events if isinstance(e, LogEvent)]
-        skip_logs = [e for e in log_events if "skipping" in e.message.lower() or "already" in e.message.lower()]
+        skip_logs = [
+            e
+            for e in log_events
+            if "skipping" in e.message.lower() or "already" in e.message.lower()
+        ]
         assert len(skip_logs) >= 1
 
     def test_export_clips_skips_when_already_done(self, job_runner, tmp_project_dir):
@@ -378,7 +393,11 @@ class TestStepSkipBehavior:
 
         # Should have emitted a skip log message
         log_events = [e for e in events if isinstance(e, LogEvent)]
-        skip_logs = [e for e in log_events if "skipping" in e.message.lower() or "already" in e.message.lower()]
+        skip_logs = [
+            e
+            for e in log_events
+            if "skipping" in e.message.lower() or "already" in e.message.lower()
+        ]
         assert len(skip_logs) >= 1
 
     def test_shorts_skips_when_already_exported(self, job_runner, tmp_project_dir):
@@ -400,7 +419,11 @@ class TestStepSkipBehavior:
 
         # Should have emitted a skip log message
         log_events = [e for e in events if isinstance(e, LogEvent)]
-        skip_logs = [e for e in log_events if "skipping" in e.message.lower() or "already" in e.message.lower()]
+        skip_logs = [
+            e
+            for e in log_events
+            if "skipping" in e.message.lower() or "already" in e.message.lower()
+        ]
         assert len(skip_logs) >= 1
 
 
@@ -414,7 +437,7 @@ class TestDirectoryCreation:
 
     def test_ensure_run_output_dir_creates_cache_dir(self, job_runner, tmp_project_dir):
         """_ensure_run_output_dir creates output/.cache/{job_id}/ directory."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
 
         cache_dir = runner._ensure_run_output_dir(job_id="test-job", video_ids=["vid1"])
 
@@ -424,13 +447,17 @@ class TestDirectoryCreation:
         assert ".cache" in str(cache_dir)
         assert "test-job" in str(cache_dir)
 
-    def test_ensure_video_run_dir_creates_subdirectory(self, job_runner, tmp_project_dir):
+    def test_ensure_video_run_dir_creates_subdirectory(
+        self, job_runner, tmp_project_dir
+    ):
         """_ensure_video_run_dir creates per-video subdirectory."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test-job"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
-        video_dir = runner._ensure_video_run_dir(run_output_dir=run_output_dir, video_id="vid1")
+        video_dir = runner._ensure_video_run_dir(
+            run_output_dir=run_output_dir, video_id="vid1"
+        )
 
         assert video_dir.exists()
         assert video_dir.is_dir()
@@ -445,9 +472,11 @@ class TestDirectoryCreation:
 class TestProgressCalculation:
     """Tests for progress total calculation."""
 
-    def test_progress_total_calculation_single_video_single_step(self, job_runner, tmp_project_dir):
+    def test_progress_total_calculation_single_video_single_step(
+        self, job_runner, tmp_project_dir
+    ):
         """progress_total = len(video_ids) * len(steps) for single video/step."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
 
         with patch.object(runner, "_step_transcribe"):
             job = JobSpec(
@@ -460,12 +489,16 @@ class TestProgressCalculation:
 
         assert result.progress_total == 1  # 1 video * 1 step
 
-    def test_progress_total_calculation_multiple_videos_multiple_steps(self, job_runner, tmp_project_dir):
+    def test_progress_total_calculation_multiple_videos_multiple_steps(
+        self, job_runner, tmp_project_dir
+    ):
         """progress_total = len(video_ids) * len(steps) for multiple videos/steps."""
-        runner, events, sm = job_runner
+        runner, _events, _sm = job_runner
 
-        with patch.object(runner, "_step_transcribe"), \
-             patch.object(runner, "_step_generate_clips"):
+        with (
+            patch.object(runner, "_step_transcribe"),
+            patch.object(runner, "_step_generate_clips"),
+        ):
             job = JobSpec(
                 job_id="test-progress",
                 video_ids=["vid1", "vid2", "vid3"],
@@ -485,10 +518,12 @@ class TestProgressCalculation:
 class TestStepOrdering:
     """Tests for step execution ordering."""
 
-    def test_step_ordering_multiple_videos_multiple_steps(self, job_runner, tmp_project_dir):
+    def test_step_ordering_multiple_videos_multiple_steps(
+        self, job_runner, tmp_project_dir
+    ):
         """Steps execute in video-then-step order."""
-        runner, events, sm = job_runner
-        execution_order: List[tuple] = []
+        runner, _events, _sm = job_runner
+        execution_order: list[tuple] = []
 
         def track_transcribe(**kwargs):
             execution_order.append(("transcribe", kwargs["video_id"]))
@@ -496,8 +531,12 @@ class TestStepOrdering:
         def track_generate_clips(**kwargs):
             execution_order.append(("generate_clips", kwargs["video_id"]))
 
-        with patch.object(runner, "_step_transcribe", side_effect=track_transcribe), \
-             patch.object(runner, "_step_generate_clips", side_effect=track_generate_clips):
+        with (
+            patch.object(runner, "_step_transcribe", side_effect=track_transcribe),
+            patch.object(
+                runner, "_step_generate_clips", side_effect=track_generate_clips
+            ),
+        ):
             job = JobSpec(
                 job_id="test-order",
                 video_ids=["vid1", "vid2"],
@@ -524,9 +563,11 @@ class TestStepOrdering:
 class TestJobStatusTransitions:
     """Tests for job status state machine transitions."""
 
-    def test_job_status_transitions_pending_to_running_to_succeeded(self, job_runner, tmp_project_dir):
+    def test_job_status_transitions_pending_to_running_to_succeeded(
+        self, job_runner, tmp_project_dir
+    ):
         """Job transitions from PENDING -> RUNNING -> SUCCEEDED on success."""
-        runner, events, sm = job_runner
+        runner, events, _sm = job_runner
 
         job = JobSpec(
             job_id="test-transitions",
@@ -550,11 +591,15 @@ class TestJobStatusTransitions:
         assert result.state == JobState.SUCCEEDED
         assert result.error is None
 
-    def test_job_status_transitions_pending_to_running_to_failed(self, job_runner, tmp_project_dir):
+    def test_job_status_transitions_pending_to_running_to_failed(
+        self, job_runner, tmp_project_dir
+    ):
         """Job transitions from PENDING -> RUNNING -> FAILED on error."""
-        runner, events, sm = job_runner
+        runner, events, _sm = job_runner
 
-        with patch.object(runner, "_step_transcribe", side_effect=Exception("Simulated failure")):
+        with patch.object(
+            runner, "_step_transcribe", side_effect=Exception("Simulated failure")
+        ):
             job = JobSpec(
                 job_id="test-failure-transition",
                 video_ids=["vid1"],
@@ -587,7 +632,9 @@ class TestJobStatusTransitions:
 class TestWithSharedFixtures:
     """Tests using shared fixtures from conftest.py."""
 
-    def test_with_tmp_project_dir_fixture(self, tmp_project_dir, sample_job_spec, event_collector):
+    def test_with_tmp_project_dir_fixture(
+        self, tmp_project_dir, sample_job_spec, event_collector
+    ):
         """JobRunner works with tmp_project_dir and sample_job_spec fixtures."""
         from src.utils.state_manager import get_state_manager
 
@@ -611,11 +658,13 @@ class TestWithSharedFixtures:
         status_events = [e for e in events if isinstance(e, JobStatusEvent)]
         assert len(status_events) >= 2
 
-    def test_state_manager_isolation_with_tmp_project_dir(self, tmp_project_dir, event_collector):
+    def test_state_manager_isolation_with_tmp_project_dir(
+        self, tmp_project_dir, event_collector
+    ):
         """StateManager singleton is properly isolated by tmp_project_dir fixture."""
         from src.utils.state_manager import get_state_manager
 
-        events, emit = event_collector
+        _events, _emit = event_collector
         sm = get_state_manager()
 
         # State should be empty initially
@@ -640,17 +689,21 @@ class TestWithSharedFixtures:
 class TestErrorHandling:
     """Tests for error handling edge cases."""
 
-    def test_missing_video_path_raises_file_not_found(self, job_runner, tmp_project_dir):
+    def test_missing_video_path_raises_file_not_found(
+        self, job_runner, tmp_project_dir
+    ):
         """_get_video_path raises FileNotFoundError when video path not registered."""
-        runner, events, sm = job_runner
+        runner, _events, sm = job_runner
         sm.get_video_path.return_value = None
 
         with pytest.raises(FileNotFoundError, match="Video path not registered"):
             runner._get_video_path("nonexistent_video")
 
-    def test_transcription_without_transcript_path_raises_runtime_error(self, job_runner, tmp_project_dir):
+    def test_transcription_without_transcript_path_raises_runtime_error(
+        self, job_runner, tmp_project_dir
+    ):
         """_step_generate_clips raises RuntimeError when no transcript_path exists."""
-        runner, events, sm = job_runner
+        runner, _events, sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -664,9 +717,11 @@ class TestErrorHandling:
                 run_output_dir=run_output_dir,
             )
 
-    def test_export_without_clips_raises_runtime_error(self, job_runner, tmp_project_dir):
+    def test_export_without_clips_raises_runtime_error(
+        self, job_runner, tmp_project_dir
+    ):
         """_step_export_clips raises RuntimeError when no clips in state."""
-        runner, events, sm = job_runner
+        runner, _events, sm = job_runner
         run_output_dir = Path(tmp_project_dir) / "output" / ".cache" / "test"
         run_output_dir.mkdir(parents=True, exist_ok=True)
 

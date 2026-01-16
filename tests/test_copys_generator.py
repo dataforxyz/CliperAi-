@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Comprehensive pytest tests for src/copys_generator.py
 
@@ -19,12 +18,11 @@ Uses mock_gemini_client fixture for deterministic testing without API calls.
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from src.models.copy_schemas import ClipCopy, CopyMetadata, CopysOutput
-
+from src.models.copy_schemas import ClipCopy, CopyMetadata
 
 # ============================================================================
 # FIXTURES
@@ -82,40 +80,42 @@ def mock_classification_response():
     Returns JSON string with classifications array for sample clips.
     Covers all three styles: viral, educational, storytelling.
     """
-    return json.dumps({
-        "classifications": [
-            {
-                "clip_id": 1,
-                "style": "viral",
-                "confidence": 0.92,
-                "reason": "Dato provocativo '90% lo hace mal' genera curiosidad"
-            },
-            {
-                "clip_id": 2,
-                "style": "educational",
-                "confidence": 0.88,
-                "reason": "Tutorial paso a paso sobre React hooks"
-            },
-            {
-                "clip_id": 3,
-                "style": "storytelling",
-                "confidence": 0.95,
-                "reason": "Experiencia personal con journey emocional"
-            },
-            {
-                "clip_id": 4,
-                "style": "educational",
-                "confidence": 0.85,
-                "reason": "Explicación de concepto técnico (qué es IA)"
-            },
-            {
-                "clip_id": 5,
-                "style": "viral",
-                "confidence": 0.90,
-                "reason": "Tema controversial sobre burnout en tech"
-            }
-        ]
-    })
+    return json.dumps(
+        {
+            "classifications": [
+                {
+                    "clip_id": 1,
+                    "style": "viral",
+                    "confidence": 0.92,
+                    "reason": "Dato provocativo '90% lo hace mal' genera curiosidad",
+                },
+                {
+                    "clip_id": 2,
+                    "style": "educational",
+                    "confidence": 0.88,
+                    "reason": "Tutorial paso a paso sobre React hooks",
+                },
+                {
+                    "clip_id": 3,
+                    "style": "storytelling",
+                    "confidence": 0.95,
+                    "reason": "Experiencia personal con journey emocional",
+                },
+                {
+                    "clip_id": 4,
+                    "style": "educational",
+                    "confidence": 0.85,
+                    "reason": "Explicación de concepto técnico (qué es IA)",
+                },
+                {
+                    "clip_id": 5,
+                    "style": "viral",
+                    "confidence": 0.90,
+                    "reason": "Tema controversial sobre burnout en tech",
+                },
+            ]
+        }
+    )
 
 
 @pytest.fixture
@@ -124,36 +124,38 @@ def mock_copy_response_viral():
     Returns JSON string with valid CopysOutput for viral clips.
     Includes #AICDMX hashtag as required by validators.
     """
-    return json.dumps({
-        "clips": [
-            {
-                "clip_id": 1,
-                "copy": "El 90% de los devs cometen este error fatal con APIs 💀 #AICDMX #Tech",
-                "metadata": {
-                    "sentiment": "controversial",
-                    "sentiment_score": 0.85,
-                    "engagement_score": 8.5,
-                    "suggested_thumbnail_timestamp": 5.0,
-                    "primary_topics": ["APIs", "desarrollo", "errores"],
-                    "hook_strength": "very_high",
-                    "viral_potential": 8.8
-                }
-            },
-            {
-                "clip_id": 5,
-                "copy": "Nadie habla de ESTO en tech... el burnout nos está destruyendo 😤 #AICDMX #DevLife",
-                "metadata": {
-                    "sentiment": "controversial",
-                    "sentiment_score": 0.90,
-                    "engagement_score": 8.0,
-                    "suggested_thumbnail_timestamp": 8.0,
-                    "primary_topics": ["burnout", "tech", "salud mental"],
-                    "hook_strength": "high",
-                    "viral_potential": 8.2
-                }
-            }
-        ]
-    })
+    return json.dumps(
+        {
+            "clips": [
+                {
+                    "clip_id": 1,
+                    "copy": "El 90% de los devs cometen este error fatal con APIs 💀 #AICDMX #Tech",
+                    "metadata": {
+                        "sentiment": "controversial",
+                        "sentiment_score": 0.85,
+                        "engagement_score": 8.5,
+                        "suggested_thumbnail_timestamp": 5.0,
+                        "primary_topics": ["APIs", "desarrollo", "errores"],
+                        "hook_strength": "very_high",
+                        "viral_potential": 8.8,
+                    },
+                },
+                {
+                    "clip_id": 5,
+                    "copy": "Nadie habla de ESTO en tech... el burnout nos está destruyendo 😤 #AICDMX #DevLife",
+                    "metadata": {
+                        "sentiment": "controversial",
+                        "sentiment_score": 0.90,
+                        "engagement_score": 8.0,
+                        "suggested_thumbnail_timestamp": 8.0,
+                        "primary_topics": ["burnout", "tech", "salud mental"],
+                        "hook_strength": "high",
+                        "viral_potential": 8.2,
+                    },
+                },
+            ]
+        }
+    )
 
 
 @pytest.fixture
@@ -161,36 +163,42 @@ def mock_copy_response_educational():
     """
     Returns JSON string with valid CopysOutput for educational clips.
     """
-    return json.dumps({
-        "clips": [
-            {
-                "clip_id": 2,
-                "copy": "React Hooks: La guía que NECESITAS para optimizarlos correctamente 📚 #AICDMX #React",
-                "metadata": {
-                    "sentiment": "educational",
-                    "sentiment_score": 0.75,
-                    "engagement_score": 7.8,
-                    "suggested_thumbnail_timestamp": 3.0,
-                    "primary_topics": ["React", "hooks", "optimización"],
-                    "hook_strength": "high",
-                    "viral_potential": 7.0
-                }
-            },
-            {
-                "clip_id": 4,
-                "copy": "¿Qué es la IA? Te explico en 30 segundos lo que necesitas saber 🤖 #AICDMX #AI",
-                "metadata": {
-                    "sentiment": "educational",
-                    "sentiment_score": 0.70,
-                    "engagement_score": 7.5,
-                    "suggested_thumbnail_timestamp": 2.0,
-                    "primary_topics": ["inteligencia artificial", "tech", "educación"],
-                    "hook_strength": "medium",
-                    "viral_potential": 7.2
-                }
-            }
-        ]
-    })
+    return json.dumps(
+        {
+            "clips": [
+                {
+                    "clip_id": 2,
+                    "copy": "React Hooks: La guía que NECESITAS para optimizarlos correctamente 📚 #AICDMX #React",
+                    "metadata": {
+                        "sentiment": "educational",
+                        "sentiment_score": 0.75,
+                        "engagement_score": 7.8,
+                        "suggested_thumbnail_timestamp": 3.0,
+                        "primary_topics": ["React", "hooks", "optimización"],
+                        "hook_strength": "high",
+                        "viral_potential": 7.0,
+                    },
+                },
+                {
+                    "clip_id": 4,
+                    "copy": "¿Qué es la IA? Te explico en 30 segundos lo que necesitas saber 🤖 #AICDMX #AI",
+                    "metadata": {
+                        "sentiment": "educational",
+                        "sentiment_score": 0.70,
+                        "engagement_score": 7.5,
+                        "suggested_thumbnail_timestamp": 2.0,
+                        "primary_topics": [
+                            "inteligencia artificial",
+                            "tech",
+                            "educación",
+                        ],
+                        "hook_strength": "medium",
+                        "viral_potential": 7.2,
+                    },
+                },
+            ]
+        }
+    )
 
 
 @pytest.fixture
@@ -198,23 +206,25 @@ def mock_copy_response_storytelling():
     """
     Returns JSON string with valid CopysOutput for storytelling clips.
     """
-    return json.dumps({
-        "clips": [
-            {
-                "clip_id": 3,
-                "copy": "Mi primer bug afectó a 10K usuarios... y así sobreviví 😰 #AICDMX #DevStories",
-                "metadata": {
-                    "sentiment": "storytelling",
-                    "sentiment_score": 0.88,
-                    "engagement_score": 8.2,
-                    "suggested_thumbnail_timestamp": 10.0,
-                    "primary_topics": ["bugs", "carrera", "aprendizaje"],
-                    "hook_strength": "very_high",
-                    "viral_potential": 8.5
+    return json.dumps(
+        {
+            "clips": [
+                {
+                    "clip_id": 3,
+                    "copy": "Mi primer bug afectó a 10K usuarios... y así sobreviví 😰 #AICDMX #DevStories",
+                    "metadata": {
+                        "sentiment": "storytelling",
+                        "sentiment_score": 0.88,
+                        "engagement_score": 8.2,
+                        "suggested_thumbnail_timestamp": 10.0,
+                        "primary_topics": ["bugs", "carrera", "aprendizaje"],
+                        "hook_strength": "very_high",
+                        "viral_potential": 8.5,
+                    },
                 }
-            }
-        ]
-    })
+            ]
+        }
+    )
 
 
 @pytest.fixture
@@ -233,8 +243,8 @@ def sample_clip_copies():
                 suggested_thumbnail_timestamp=5.0,
                 primary_topics=["APIs", "desarrollo", "errores"],
                 hook_strength="very_high",
-                viral_potential=8.8
-            )
+                viral_potential=8.8,
+            ),
         ),
         ClipCopy(
             clip_id=2,
@@ -246,8 +256,8 @@ def sample_clip_copies():
                 suggested_thumbnail_timestamp=3.0,
                 primary_topics=["React", "hooks", "optimización"],
                 hook_strength="high",
-                viral_potential=7.0
-            )
+                viral_potential=7.0,
+            ),
         ),
         ClipCopy(
             clip_id=3,
@@ -259,8 +269,8 @@ def sample_clip_copies():
                 suggested_thumbnail_timestamp=10.0,
                 primary_topics=["bugs", "carrera", "aprendizaje"],
                 hook_strength="very_high",
-                viral_potential=8.5
-            )
+                viral_potential=8.5,
+            ),
         ),
     ]
 
@@ -280,17 +290,19 @@ def clips_metadata_file(tmp_path, sample_clips_data):
     # Convert sample_clips_data to the expected format with full_text
     clips_with_full_text = []
     for clip in sample_clips_data:
-        clips_with_full_text.append({
-            "clip_id": clip["clip_id"],
-            "start_time": clip["start_time"],
-            "end_time": clip["end_time"],
-            "duration": clip["duration"],
-            "full_text": clip["transcript"]
-        })
+        clips_with_full_text.append(
+            {
+                "clip_id": clip["clip_id"],
+                "start_time": clip["start_time"],
+                "end_time": clip["end_time"],
+                "duration": clip["duration"],
+                "full_text": clip["transcript"],
+            }
+        )
 
     clips_file.write_text(
         json.dumps({"clips": clips_with_full_text}, indent=2, ensure_ascii=False),
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
     return {"path": clips_file, "temp_dir": temp_dir, "video_id": video_id}
@@ -309,10 +321,7 @@ class TestCopysGeneratorInitialization:
         # Patch the ChatGoogleGenerativeAI to avoid API calls
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -329,17 +338,12 @@ class TestCopysGeneratorInitialization:
         """Verify custom model configuration."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(
-            video_id="custom_video",
-            model="gemini-1.5-pro",
-            max_attempts=5
+            video_id="custom_video", model="gemini-1.5-pro", max_attempts=5
         )
 
         assert generator.model == "gemini-1.5-pro"
@@ -349,10 +353,7 @@ class TestCopysGeneratorInitialization:
         """Verify that the graph is built with all nodes."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -374,10 +375,7 @@ class TestLoadDataNode:
         """Verify successful loading of clips metadata."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -387,7 +385,7 @@ class TestLoadDataNode:
         state = {
             "video_id": clips_metadata_file["video_id"],
             "clips_data": [],
-            "logs": []
+            "logs": [],
         }
 
         result = generator.load_data_node(state)
@@ -402,21 +400,14 @@ class TestLoadDataNode:
         """Verify error handling when clips file doesn't exist."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="nonexistent_video")
         generator.temp_dir = tmp_path / "temp"
 
-        state = {
-            "video_id": "nonexistent_video",
-            "clips_data": [],
-            "logs": []
-        }
+        state = {"video_id": "nonexistent_video", "clips_data": [], "logs": []}
 
         result = generator.load_data_node(state)
 
@@ -443,19 +434,13 @@ class TestClassifyClipsNode:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
-        state = {
-            "clips_data": sample_clips_data,
-            "logs": []
-        }
+        state = {"clips_data": sample_clips_data, "logs": []}
 
         result = generator.classify_clips_node(state)
 
@@ -468,20 +453,40 @@ class TestClassifyClipsNode:
         assert "educational" in styles
         assert "storytelling" in styles
 
-    def test_classify_clips_node_partial_success(
-        self, monkeypatch, sample_clips_data
-    ):
+    def test_classify_clips_node_partial_success(self, monkeypatch, sample_clips_data):
         """Verify graceful degradation with >60% classification success."""
         # Only return classifications for 4 out of 5 clips (80%)
-        partial_response = json.dumps({
-            "classifications": [
-                {"clip_id": 1, "style": "viral", "confidence": 0.9, "reason": "Test"},
-                {"clip_id": 2, "style": "educational", "confidence": 0.85, "reason": "Test"},
-                {"clip_id": 3, "style": "storytelling", "confidence": 0.92, "reason": "Test"},
-                {"clip_id": 4, "style": "educational", "confidence": 0.88, "reason": "Test"},
-                # clip_id 5 is missing
-            ]
-        })
+        partial_response = json.dumps(
+            {
+                "classifications": [
+                    {
+                        "clip_id": 1,
+                        "style": "viral",
+                        "confidence": 0.9,
+                        "reason": "Test",
+                    },
+                    {
+                        "clip_id": 2,
+                        "style": "educational",
+                        "confidence": 0.85,
+                        "reason": "Test",
+                    },
+                    {
+                        "clip_id": 3,
+                        "style": "storytelling",
+                        "confidence": 0.92,
+                        "reason": "Test",
+                    },
+                    {
+                        "clip_id": 4,
+                        "style": "educational",
+                        "confidence": 0.88,
+                        "reason": "Test",
+                    },
+                    # clip_id 5 is missing
+                ]
+            }
+        )
 
         mock_response = MagicMock()
         mock_response.content = partial_response
@@ -490,19 +495,13 @@ class TestClassifyClipsNode:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
-        state = {
-            "clips_data": sample_clips_data,
-            "logs": []
-        }
+        state = {"clips_data": sample_clips_data, "logs": []}
 
         result = generator.classify_clips_node(state)
 
@@ -515,12 +514,24 @@ class TestClassifyClipsNode:
     ):
         """Verify failure when <60% clips are classified."""
         # Only return classifications for 2 out of 5 clips (40%)
-        insufficient_response = json.dumps({
-            "classifications": [
-                {"clip_id": 1, "style": "viral", "confidence": 0.9, "reason": "Test"},
-                {"clip_id": 2, "style": "educational", "confidence": 0.85, "reason": "Test"},
-            ]
-        })
+        insufficient_response = json.dumps(
+            {
+                "classifications": [
+                    {
+                        "clip_id": 1,
+                        "style": "viral",
+                        "confidence": 0.9,
+                        "reason": "Test",
+                    },
+                    {
+                        "clip_id": 2,
+                        "style": "educational",
+                        "confidence": 0.85,
+                        "reason": "Test",
+                    },
+                ]
+            }
+        )
 
         mock_response = MagicMock()
         mock_response.content = insufficient_response
@@ -529,19 +540,13 @@ class TestClassifyClipsNode:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
-        state = {
-            "clips_data": sample_clips_data,
-            "logs": []
-        }
+        state = {"clips_data": sample_clips_data, "logs": []}
 
         result = generator.classify_clips_node(state)
 
@@ -572,19 +577,13 @@ class TestClassifyClipsNode:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
-        state = {
-            "clips_data": sample_clips_data,
-            "logs": []
-        }
+        state = {"clips_data": sample_clips_data, "logs": []}
 
         result = generator.classify_clips_node(state)
 
@@ -596,13 +595,30 @@ class TestClassifyClipsNode:
     ):
         """Verify handling when Gemini returns array instead of {classifications: [...]}."""
         # Gemini sometimes returns just the array
-        list_response = json.dumps([
-            {"clip_id": 1, "style": "viral", "confidence": 0.9, "reason": "Test"},
-            {"clip_id": 2, "style": "educational", "confidence": 0.85, "reason": "Test"},
-            {"clip_id": 3, "style": "storytelling", "confidence": 0.92, "reason": "Test"},
-            {"clip_id": 4, "style": "educational", "confidence": 0.88, "reason": "Test"},
-            {"clip_id": 5, "style": "viral", "confidence": 0.87, "reason": "Test"}
-        ])
+        list_response = json.dumps(
+            [
+                {"clip_id": 1, "style": "viral", "confidence": 0.9, "reason": "Test"},
+                {
+                    "clip_id": 2,
+                    "style": "educational",
+                    "confidence": 0.85,
+                    "reason": "Test",
+                },
+                {
+                    "clip_id": 3,
+                    "style": "storytelling",
+                    "confidence": 0.92,
+                    "reason": "Test",
+                },
+                {
+                    "clip_id": 4,
+                    "style": "educational",
+                    "confidence": 0.88,
+                    "reason": "Test",
+                },
+                {"clip_id": 5, "style": "viral", "confidence": 0.87, "reason": "Test"},
+            ]
+        )
 
         mock_response = MagicMock()
         mock_response.content = list_response
@@ -611,19 +627,13 @@ class TestClassifyClipsNode:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
-        state = {
-            "clips_data": sample_clips_data,
-            "logs": []
-        }
+        state = {"clips_data": sample_clips_data, "logs": []}
 
         result = generator.classify_clips_node(state)
 
@@ -643,10 +653,7 @@ class TestGroupByStyleNode:
         """Verify clips are grouped correctly into viral/educational/storytelling."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -654,16 +661,31 @@ class TestGroupByStyleNode:
 
         classifications = [
             {"clip_id": 1, "style": "viral", "confidence": 0.9, "reason": "Test"},
-            {"clip_id": 2, "style": "educational", "confidence": 0.85, "reason": "Test"},
-            {"clip_id": 3, "style": "storytelling", "confidence": 0.92, "reason": "Test"},
-            {"clip_id": 4, "style": "educational", "confidence": 0.88, "reason": "Test"},
-            {"clip_id": 5, "style": "viral", "confidence": 0.87, "reason": "Test"}
+            {
+                "clip_id": 2,
+                "style": "educational",
+                "confidence": 0.85,
+                "reason": "Test",
+            },
+            {
+                "clip_id": 3,
+                "style": "storytelling",
+                "confidence": 0.92,
+                "reason": "Test",
+            },
+            {
+                "clip_id": 4,
+                "style": "educational",
+                "confidence": 0.88,
+                "reason": "Test",
+            },
+            {"clip_id": 5, "style": "viral", "confidence": 0.87, "reason": "Test"},
         ]
 
         state = {
             "clips_data": sample_clips_data,
             "classifications": classifications,
-            "logs": []
+            "logs": [],
         }
 
         result = generator.group_by_style_node(state)
@@ -684,14 +706,13 @@ class TestGroupByStyleNode:
         assert 2 in educational_ids
         assert 4 in educational_ids
 
-    def test_group_by_style_node_skips_missing_clips(self, monkeypatch, sample_clips_data):
+    def test_group_by_style_node_skips_missing_clips(
+        self, monkeypatch, sample_clips_data
+    ):
         """Verify that classifications for non-existent clips are skipped."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -700,13 +721,18 @@ class TestGroupByStyleNode:
         # Include a classification for non-existent clip_id 99
         classifications = [
             {"clip_id": 1, "style": "viral", "confidence": 0.9, "reason": "Test"},
-            {"clip_id": 99, "style": "viral", "confidence": 0.9, "reason": "Should be skipped"},
+            {
+                "clip_id": 99,
+                "style": "viral",
+                "confidence": 0.9,
+                "reason": "Should be skipped",
+            },
         ]
 
         state = {
             "clips_data": sample_clips_data,
             "classifications": classifications,
-            "logs": []
+            "logs": [],
         }
 
         result = generator.group_by_style_node(state)
@@ -735,10 +761,7 @@ class TestGenerateNodes:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -746,16 +769,16 @@ class TestGenerateNodes:
 
         viral_clips = [
             {**sample_clips_data[0], "classification": {"style": "viral"}},
-            {**sample_clips_data[4], "classification": {"style": "viral"}}
+            {**sample_clips_data[4], "classification": {"style": "viral"}},
         ]
 
         state = {
             "grouped_clips": {
                 "viral": viral_clips,
                 "educational": [],
-                "storytelling": []
+                "storytelling": [],
             },
-            "logs": []
+            "logs": [],
         }
 
         result = generator.generate_viral_node(state)
@@ -776,10 +799,7 @@ class TestGenerateNodes:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -787,16 +807,16 @@ class TestGenerateNodes:
 
         educational_clips = [
             {**sample_clips_data[1], "classification": {"style": "educational"}},
-            {**sample_clips_data[3], "classification": {"style": "educational"}}
+            {**sample_clips_data[3], "classification": {"style": "educational"}},
         ]
 
         state = {
             "grouped_clips": {
                 "viral": [],
                 "educational": educational_clips,
-                "storytelling": []
+                "storytelling": [],
             },
-            "logs": []
+            "logs": [],
         }
 
         result = generator.generate_educational_node(state)
@@ -816,10 +836,7 @@ class TestGenerateNodes:
         mock_llm.invoke.return_value = mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -833,9 +850,9 @@ class TestGenerateNodes:
             "grouped_clips": {
                 "viral": [],
                 "educational": [],
-                "storytelling": storytelling_clips
+                "storytelling": storytelling_clips,
             },
-            "logs": []
+            "logs": [],
         }
 
         result = generator.generate_storytelling_node(state)
@@ -848,22 +865,15 @@ class TestGenerateNodes:
         """Verify empty group returns empty list."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
         state = {
-            "grouped_clips": {
-                "viral": [],
-                "educational": [],
-                "storytelling": []
-            },
-            "logs": []
+            "grouped_clips": {"viral": [], "educational": [], "storytelling": []},
+            "logs": [],
         }
 
         result = generator.generate_viral_node(state)
@@ -880,14 +890,13 @@ class TestGenerateNodes:
 class TestMergeResultsNode:
     """Tests for merge_results_node."""
 
-    def test_merge_results_node(self, monkeypatch, sample_clips_data, sample_clip_copies):
+    def test_merge_results_node(
+        self, monkeypatch, sample_clips_data, sample_clip_copies
+    ):
         """Verify all copies are combined and sorted by clip_id."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -903,7 +912,7 @@ class TestMergeResultsNode:
             "viral_copies": viral,
             "educational_copies": educational,
             "storytelling_copies": storytelling,
-            "logs": []
+            "logs": [],
         }
 
         result = generator.merge_results_node(state)
@@ -915,14 +924,13 @@ class TestMergeResultsNode:
         ids = [c.clip_id for c in result["all_copies"]]
         assert ids == [1, 2, 3]
 
-    def test_merge_results_node_partial_copies(self, monkeypatch, sample_clips_data, sample_clip_copies):
+    def test_merge_results_node_partial_copies(
+        self, monkeypatch, sample_clips_data, sample_clip_copies
+    ):
         """Verify warning when not all clips have copies."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -934,7 +942,7 @@ class TestMergeResultsNode:
             "viral_copies": [sample_clip_copies[0]],  # 1 copy
             "educational_copies": [sample_clip_copies[1]],  # 1 copy
             "storytelling_copies": [],
-            "logs": []
+            "logs": [],
         }
 
         result = generator.merge_results_node(state)
@@ -957,19 +965,13 @@ class TestValidateStructureNode:
         """Verify validation passes for valid copies with #AICDMX."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
-        state = {
-            "all_copies": sample_clip_copies,
-            "logs": []
-        }
+        state = {"all_copies": sample_clip_copies, "logs": []}
 
         result = generator.validate_structure_node(state)
 
@@ -980,10 +982,7 @@ class TestValidateStructureNode:
         """Verify detection of missing #AICDMX hashtag."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1000,16 +999,13 @@ class TestValidateStructureNode:
                 suggested_thumbnail_timestamp=5.0,
                 primary_topics=["test", "topics", "here"],
                 hook_strength="medium",
-                viral_potential=7.0
-            )
+                viral_potential=7.0,
+            ),
         )
         # Manually override copy to remove hashtag (simulating bad data)
-        object.__setattr__(copy_obj, 'copy', "Test copy without branding hashtag")
+        object.__setattr__(copy_obj, "copy", "Test copy without branding hashtag")
 
-        state = {
-            "all_copies": [copy_obj],
-            "logs": []
-        }
+        state = {"all_copies": [copy_obj], "logs": []}
 
         result = generator.validate_structure_node(state)
 
@@ -1020,10 +1016,7 @@ class TestValidateStructureNode:
         """Verify detection of copy too short (<20 chars)."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1040,16 +1033,13 @@ class TestValidateStructureNode:
                 suggested_thumbnail_timestamp=5.0,
                 primary_topics=["test", "topics", "here"],
                 hook_strength="medium",
-                viral_potential=7.0
-            )
+                viral_potential=7.0,
+            ),
         )
         # Manually override copy to be too short
-        object.__setattr__(copy_obj, 'copy', "Short #AICDMX")  # 13 chars
+        object.__setattr__(copy_obj, "copy", "Short #AICDMX")  # 13 chars
 
-        state = {
-            "all_copies": [copy_obj],
-            "logs": []
-        }
+        state = {"all_copies": [copy_obj], "logs": []}
 
         result = generator.validate_structure_node(state)
 
@@ -1065,14 +1055,13 @@ class TestValidateStructureNode:
 class TestAnalyzeQualityNode:
     """Tests for analyze_quality_node."""
 
-    def test_analyze_quality_node(self, monkeypatch, sample_clips_data, sample_clip_copies):
+    def test_analyze_quality_node(
+        self, monkeypatch, sample_clips_data, sample_clip_copies
+    ):
         """Verify engagement/viral averages and low_quality_clips calculation."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1081,7 +1070,7 @@ class TestAnalyzeQualityNode:
         state = {
             "clips_data": sample_clips_data[:3],  # 3 clips
             "all_copies": sample_clip_copies,  # 3 copies
-            "logs": []
+            "logs": [],
         }
 
         result = generator.analyze_quality_node(state)
@@ -1098,34 +1087,26 @@ class TestAnalyzeQualityNode:
         """Verify error when no copies were generated."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
         generator = CopysGenerator(video_id="test_video")
 
-        state = {
-            "clips_data": sample_clips_data,
-            "all_copies": [],
-            "logs": []
-        }
+        state = {"clips_data": sample_clips_data, "all_copies": [], "logs": []}
 
         result = generator.analyze_quality_node(state)
 
         assert "error_message" in result
         assert "No se generaron copies" in result["error_message"]
 
-    def test_analyze_quality_node_insufficient_success_rate(self, monkeypatch, sample_clips_data, sample_clip_copies):
+    def test_analyze_quality_node_insufficient_success_rate(
+        self, monkeypatch, sample_clips_data, sample_clip_copies
+    ):
         """Verify failure when success rate < 60%."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1135,7 +1116,7 @@ class TestAnalyzeQualityNode:
         state = {
             "clips_data": sample_clips_data,  # 5 clips
             "all_copies": sample_clip_copies[:2],  # 2 copies
-            "logs": []
+            "logs": [],
         }
 
         result = generator.analyze_quality_node(state)
@@ -1143,14 +1124,13 @@ class TestAnalyzeQualityNode:
         assert "error_message" in result
         assert "Generación insuficiente" in result["error_message"]
 
-    def test_analyze_quality_node_identifies_low_quality(self, monkeypatch, sample_clips_data):
+    def test_analyze_quality_node_identifies_low_quality(
+        self, monkeypatch, sample_clips_data
+    ):
         """Verify clips with engagement < 6.5 are flagged as low quality."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1168,8 +1148,8 @@ class TestAnalyzeQualityNode:
                     suggested_thumbnail_timestamp=5.0,
                     primary_topics=["test", "topics", "here"],
                     hook_strength="high",
-                    viral_potential=7.5
-                )
+                    viral_potential=7.5,
+                ),
             ),
             ClipCopy(
                 clip_id=2,
@@ -1181,16 +1161,12 @@ class TestAnalyzeQualityNode:
                     suggested_thumbnail_timestamp=5.0,
                     primary_topics=["test", "topics", "here"],
                     hook_strength="low",
-                    viral_potential=5.0
-                )
+                    viral_potential=5.0,
+                ),
             ),
         ]
 
-        state = {
-            "clips_data": sample_clips_data[:2],
-            "all_copies": copies,
-            "logs": []
-        }
+        state = {"clips_data": sample_clips_data[:2], "all_copies": copies, "logs": []}
 
         result = generator.analyze_quality_node(state)
 
@@ -1210,10 +1186,7 @@ class TestShouldRetryOrSave:
         """Verify 'save' is returned when engagement >= 7.5."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1223,7 +1196,7 @@ class TestShouldRetryOrSave:
             "average_engagement": 8.0,
             "attempts": 1,
             "max_attempts": 3,
-            "error_message": ""
+            "error_message": "",
         }
 
         result = generator.should_retry_or_save(state)
@@ -1234,10 +1207,7 @@ class TestShouldRetryOrSave:
         """Verify 'retry' is returned when engagement < 7.5 and attempts < max."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1247,7 +1217,7 @@ class TestShouldRetryOrSave:
             "average_engagement": 6.5,  # Below threshold
             "attempts": 1,
             "max_attempts": 3,
-            "error_message": ""
+            "error_message": "",
         }
 
         result = generator.should_retry_or_save(state)
@@ -1258,10 +1228,7 @@ class TestShouldRetryOrSave:
         """Verify 'save' is returned when max_attempts reached even with low engagement."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1271,7 +1238,7 @@ class TestShouldRetryOrSave:
             "average_engagement": 6.5,  # Below threshold
             "attempts": 3,
             "max_attempts": 3,  # Max reached
-            "error_message": ""
+            "error_message": "",
         }
 
         result = generator.should_retry_or_save(state)
@@ -1282,10 +1249,7 @@ class TestShouldRetryOrSave:
         """Verify 'end' is returned when error_message is present."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1295,7 +1259,7 @@ class TestShouldRetryOrSave:
             "average_engagement": 8.0,
             "attempts": 1,
             "max_attempts": 3,
-            "error_message": "Some error occurred"
+            "error_message": "Some error occurred",
         }
 
         result = generator.should_retry_or_save(state)
@@ -1311,14 +1275,13 @@ class TestShouldRetryOrSave:
 class TestSaveResultsNode:
     """Tests for save_results_node."""
 
-    def test_save_results_node(self, monkeypatch, tmp_path, sample_clips_data, sample_clip_copies):
+    def test_save_results_node(
+        self, monkeypatch, tmp_path, sample_clips_data, sample_clip_copies
+    ):
         """Verify JSON file is written with correct structure."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1331,8 +1294,18 @@ class TestSaveResultsNode:
 
         classifications = [
             {"clip_id": 1, "style": "viral", "confidence": 0.9, "reason": "Test"},
-            {"clip_id": 2, "style": "educational", "confidence": 0.85, "reason": "Test"},
-            {"clip_id": 3, "style": "storytelling", "confidence": 0.92, "reason": "Test"}
+            {
+                "clip_id": 2,
+                "style": "educational",
+                "confidence": 0.85,
+                "reason": "Test",
+            },
+            {
+                "clip_id": 3,
+                "style": "storytelling",
+                "confidence": 0.92,
+                "reason": "Test",
+            },
         ]
 
         state = {
@@ -1342,11 +1315,11 @@ class TestSaveResultsNode:
             "grouped_clips": {
                 "viral": [{"clip_id": 1}],
                 "educational": [{"clip_id": 2}],
-                "storytelling": [{"clip_id": 3}]
+                "storytelling": [{"clip_id": 3}],
             },
             "average_engagement": 8.17,
             "average_viral_potential": 8.1,
-            "logs": []
+            "logs": [],
         }
 
         result = generator.save_results_node(state)
@@ -1355,7 +1328,7 @@ class TestSaveResultsNode:
         assert generator.copys_file.exists()
 
         # Verify content
-        with open(generator.copys_file, 'r', encoding='utf-8') as f:
+        with open(generator.copys_file, encoding="utf-8") as f:
             saved_data = json.load(f)
 
         assert saved_data["video_id"] == "test_video"
@@ -1364,14 +1337,13 @@ class TestSaveResultsNode:
         assert "classification_metadata" in saved_data
         assert "Guardado" in result["logs"][0]
 
-    def test_save_results_node_incomplete_generation(self, monkeypatch, tmp_path, sample_clips_data, sample_clip_copies):
+    def test_save_results_node_incomplete_generation(
+        self, monkeypatch, tmp_path, sample_clips_data, sample_clip_copies
+    ):
         """Verify incomplete generation metadata is saved."""
         mock_llm = MagicMock()
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1393,16 +1365,16 @@ class TestSaveResultsNode:
             "grouped_clips": {
                 "viral": [{"clip_id": 1}, {"clip_id": 5}],
                 "educational": [{"clip_id": 2}, {"clip_id": 4}],
-                "storytelling": [{"clip_id": 3}]
+                "storytelling": [{"clip_id": 3}],
             },
             "average_engagement": 8.17,
             "average_viral_potential": 8.1,
-            "logs": []
+            "logs": [],
         }
 
-        result = generator.save_results_node(state)
+        generator.save_results_node(state)
 
-        with open(generator.copys_file, 'r', encoding='utf-8') as f:
+        with open(generator.copys_file, encoding="utf-8") as f:
             saved_data = json.load(f)
 
         assert saved_data["generation_metadata"]["incomplete"] is True
@@ -1428,7 +1400,7 @@ class TestFullWorkflowIntegration:
         mock_classification_response,
         mock_copy_response_viral,
         mock_copy_response_educational,
-        mock_copy_response_storytelling
+        mock_copy_response_storytelling,
     ):
         """Run the entire LangGraph workflow end-to-end with mocked responses."""
         # Track which call we're on to return appropriate response
@@ -1457,10 +1429,7 @@ class TestFullWorkflowIntegration:
         mock_llm.invoke.side_effect = get_mock_response
 
         mock_class = MagicMock(return_value=mock_llm)
-        monkeypatch.setattr(
-            "src.copys_generator.ChatGoogleGenerativeAI",
-            mock_class
-        )
+        monkeypatch.setattr("src.copys_generator.ChatGoogleGenerativeAI", mock_class)
 
         from src.copys_generator import CopysGenerator
 
@@ -1489,7 +1458,7 @@ class TestFullWorkflowIntegration:
         assert generator.copys_file.exists()
 
         # Verify file content
-        with open(generator.copys_file, 'r', encoding='utf-8') as f:
+        with open(generator.copys_file, encoding="utf-8") as f:
             saved_data = json.load(f)
 
         assert len(saved_data["clips"]) == 5
@@ -1517,8 +1486,8 @@ class TestPydanticValidators:
                     suggested_thumbnail_timestamp=5.0,
                     primary_topics=["test", "topics", "here"],
                     hook_strength="medium",
-                    viral_potential=7.0
-                )
+                    viral_potential=7.0,
+                ),
             )
 
     def test_copy_requires_at_least_one_hashtag(self):
@@ -1534,8 +1503,8 @@ class TestPydanticValidators:
                     suggested_thumbnail_timestamp=5.0,
                     primary_topics=["test", "topics", "here"],
                     hook_strength="medium",
-                    viral_potential=7.0
-                )
+                    viral_potential=7.0,
+                ),
             )
 
     def test_copy_truncation_preserves_aicdmx(self):
@@ -1552,8 +1521,8 @@ class TestPydanticValidators:
                 suggested_thumbnail_timestamp=5.0,
                 primary_topics=["test", "topics", "here"],
                 hook_strength="medium",
-                viral_potential=7.0
-            )
+                viral_potential=7.0,
+            ),
         )
 
         assert len(clip.copy) <= 150
@@ -1568,13 +1537,18 @@ class TestPydanticValidators:
             suggested_thumbnail_timestamp=5.0,
             primary_topics=["test", "topics", "here"],
             hook_strength="medium",
-            viral_potential=7.0
+            viral_potential=7.0,
         )
 
         # Should be normalized to a valid sentiment
         assert metadata.sentiment in [
-            "educational", "humorous", "inspirational",
-            "controversial", "curious_educational", "relatable", "storytelling"
+            "educational",
+            "humorous",
+            "inspirational",
+            "controversial",
+            "curious_educational",
+            "relatable",
+            "storytelling",
         ]
 
     def test_topics_deduplication(self):
@@ -1586,7 +1560,7 @@ class TestPydanticValidators:
             suggested_thumbnail_timestamp=5.0,
             primary_topics=["AI", "ai", "Tech", "tech", "AI"],  # Duplicates
             hook_strength="medium",
-            viral_potential=7.0
+            viral_potential=7.0,
         )
 
         # Should have duplicates removed (case-insensitive)
@@ -1601,7 +1575,7 @@ class TestPydanticValidators:
             suggested_thumbnail_timestamp=5.0,
             primary_topics=["t1", "t2", "t3", "t4", "t5", "t6", "t7"],  # 7 topics
             hook_strength="medium",
-            viral_potential=7.0
+            viral_potential=7.0,
         )
 
         assert len(metadata.primary_topics) == 5

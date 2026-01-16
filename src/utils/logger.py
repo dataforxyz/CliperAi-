@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Modulo de logging para Cliper.
 Proporciona logging con formato consistente.
@@ -10,9 +9,7 @@ from typing import Optional
 
 
 def setup_logger(
-    name: str = "cliper",
-    level: int = logging.INFO,
-    log_file: Optional[str] = None
+    name: str = "cliper", level: int = logging.INFO, log_file: Optional[str] = None
 ) -> logging.Logger:
     """
     Configura y retorna un logger con formato personalizado.
@@ -35,8 +32,8 @@ def setup_logger(
 
     # Formato del log
     formatter = logging.Formatter(
-        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     # Handler para consola

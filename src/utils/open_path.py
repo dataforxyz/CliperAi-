@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import os
@@ -7,7 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Union
-
 
 PathLike = Union[str, Path]
 
@@ -28,7 +26,9 @@ def open_path(path: PathLike) -> None:
 
     opener = shutil.which("xdg-open")
     if not opener:
-        raise RuntimeError("xdg-open not found; install xdg-utils to enable opening files/folders.")
+        raise RuntimeError(
+            "xdg-open not found; install xdg-utils to enable opening files/folders."
+        )
     _run_open_cmd([opener, str(target)])
 
 
