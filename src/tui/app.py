@@ -1147,6 +1147,13 @@ class CliperTUI(App):
         table = self.query_one("#library", DataTable)
         table.clear()
 
+        # Get video IDs currently being processed
+        processing_video_ids: Set[str] = set()
+        if self._running_job_id:
+            job = self.state_manager.get_job(self._running_job_id) or {}
+            spec = job.get("spec") or {}
+            processing_video_ids = set(spec.get("video_ids") or [])
+
         for video in self.videos:
             state = self.state_manager.get_video_state(video["video_id"]) or {}
             parts = []
@@ -1158,7 +1165,12 @@ class CliperTUI(App):
                 parts.append("Exported")
             if state.get("shorts_exported"):
                 parts.append("Short exported")
-            status = " | ".join(parts) if parts else "Ready"
+
+            # Check if this video is currently being processed
+            if video["video_id"] in processing_video_ids:
+                status = "Processing..." if not parts else " | ".join(parts) + " | Processing..."
+            else:
+                status = " | ".join(parts) if parts else "Ready"
             marker = "✓" if video["video_id"] in self.selected_video_ids else ""
             table.add_row(marker, video["filename"], status, key=video["video_id"])
 
@@ -1508,6 +1520,7 @@ class CliperTUI(App):
         self._running_job_id = spec.job_id
         self.state_manager.update_job_status(spec.job_id, {"state": "running"})
         self.refresh_jobs()
+        self.refresh_library()  # Update video status to "Processing..."
 
         def emit(event: object) -> None:
             self.call_from_thread(self._handle_core_event, event)
