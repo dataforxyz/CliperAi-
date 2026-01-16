@@ -620,6 +620,44 @@ def check_missing_dependencies(specs: List[DependencySpec]) -> List[DependencySp
     return missing
 
 
+class QuitConfirmationModal(ModalScreen[bool]):
+    """Modal to confirm quitting when tasks are running."""
+
+    BINDINGS = [
+        Binding("escape", "dismiss", "Cancel"),
+        Binding("y", "confirm_quit", "Quit"),
+        Binding("n", "cancel_quit", "Cancel"),
+    ]
+
+    def __init__(self, *, running_job_id: str):
+        super().__init__()
+        self._running_job_id = running_job_id
+
+    def compose(self) -> ComposeResult:
+        yield Static("Quit Confirmation", id="title")
+        yield Static(
+            f"A task is currently running (Job: {self._running_job_id}).\n\n"
+            "Quitting now may leave the task in an incomplete state.\n"
+            "Are you sure you want to quit?",
+            classes="label",
+        )
+        with Horizontal(classes="buttons"):
+            yield Button("Quit Anyway", id="quit", variant="error")
+            yield Button("Cancel", id="cancel", variant="primary")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "quit":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
+
+    def action_confirm_quit(self) -> None:
+        self.dismiss(True)
+
+    def action_cancel_quit(self) -> None:
+        self.dismiss(False)
+
+
 class ResetStagesModal(ModalScreen[Optional[Dict[str, object]]]):
     """Modal para seleccionar qué etapas resetear de un video."""
 
@@ -1561,6 +1599,21 @@ class CliperTUI(App):
             # Estado del video ya fue persistido por StateManager en el runner; refrescamos UI.
             self.refresh_library()
             return
+
+    async def action_quit(self) -> None:
+        """Override quit to confirm when tasks are running."""
+        if self._running_job_id is not None:
+            await self.push_screen(
+                QuitConfirmationModal(running_job_id=self._running_job_id),
+                callback=self._on_quit_confirmation,
+            )
+        else:
+            self.exit()
+
+    def _on_quit_confirmation(self, confirmed: bool) -> None:
+        """Handle the result of the quit confirmation modal."""
+        if confirmed:
+            self.exit()
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         if event.data_table.id == "jobs":
