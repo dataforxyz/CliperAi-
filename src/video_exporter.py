@@ -770,14 +770,15 @@ class VideoExporter:
         }
         pos = positions.get(position, positions["top-right"])
 
-        # 1) Escalo el logo relativo al ancho del video (main_w) y preservo aspecto con h=-1
+        # 1) Escalo el logo relativo al ancho del video (iw en scale2ref) y preservo aspecto
+        #    En scale2ref: iw/ih = dimensiones del video de referencia, main_w/main_h = dimensiones del logo
         # 2) Superpongo el logo escalado en la posición elegida
         logo_scaled = "[logo_scaled]"
         video_for_overlay = "[video_for_overlay]"
         output = "[v_out]"
 
         filter_chains = [
-            f"{logo_stream}{video_stream}scale2ref=w=main_w*{scale}:h=-1{logo_scaled}{video_for_overlay}",
+            f"{logo_stream}{video_stream}scale2ref=w=2*trunc(iw*{scale}/2):h=2*trunc(iw*{scale}*main_h/main_w/2){logo_scaled}{video_for_overlay}",
             f"{video_for_overlay}{logo_scaled}overlay={pos}{output}",
         ]
         return filter_chains, output
