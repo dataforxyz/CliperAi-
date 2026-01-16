@@ -1461,6 +1461,8 @@ class CliperTUI(App):
             shorts_settings["logo_path"] = str(result["logo_path"])
         if result.get("logo_position"):
             shorts_settings["logo_position"] = result["logo_position"]
+        if result.get("logo_scale") is not None:
+            shorts_settings["logo_scale"] = result["logo_scale"]
 
         # Face tracking settings - passed at top-level for job_runner
         export_settings: Dict[str, object] = {}
