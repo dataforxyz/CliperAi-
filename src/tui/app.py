@@ -620,6 +620,60 @@ def check_missing_dependencies(specs: List[DependencySpec]) -> List[DependencySp
     return missing
 
 
+class ResetStagesModal(ModalScreen[Optional[Dict[str, object]]]):
+    """Modal para seleccionar qué etapas resetear de un video."""
+
+    BINDINGS = [
+        Binding("escape", "dismiss", "Cancel"),
+    ]
+
+    STAGE_INFO = {
+        "transcription": ("Transcription", "Reset transcript (will also reset clips, export, shorts)"),
+        "clips": ("Clips", "Reset generated clips (will also reset export)"),
+        "export": ("Export", "Reset exported clip files"),
+        "shorts": ("Shorts", "Reset exported shorts"),
+    }
+
+    def __init__(self, *, video_ids: List[str], state_manager):
+        super().__init__()
+        self._video_ids = video_ids
+        self._state_manager = state_manager
+
+    def on_mount(self) -> None:
+        first_checkbox = self.query_one("#stage_transcription", Checkbox)
+        first_checkbox.focus()
+
+    def compose(self) -> ComposeResult:
+        count = len(self._video_ids)
+        title = f"Reset Stages ({count} video{'s' if count > 1 else ''})"
+        yield Static(title, id="title")
+        yield Static("Select stages to reset:", classes="label")
+
+        for stage_key, (label, description) in self.STAGE_INFO.items():
+            yield Checkbox(f"{label} - {description}", id=f"stage_{stage_key}", value=False)
+
+        with Horizontal(classes="buttons"):
+            yield Button("Reset Selected", id="reset", variant="warning")
+            yield Button("Cancel", id="cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss(None)
+            return
+        if event.button.id == "reset":
+            stages = []
+            for stage_key in self.STAGE_INFO.keys():
+                checkbox = self.query_one(f"#stage_{stage_key}", Checkbox)
+                if checkbox.value:
+                    stages.append(stage_key)
+
+            if not stages:
+                self.dismiss(None)
+                return
+
+            self.dismiss({"stages": stages, "video_ids": self._video_ids})
+
+
 class CliperTUI(App):
     TITLE = "CLIPER"
     SUB_TITLE = "Video Clipper (Textual)"
@@ -812,7 +866,9 @@ class CliperTUI(App):
         Binding("e", "enqueue_export", "Export"),
         Binding("p", "enqueue_process_shorts", "Process Shorts"),
         Binding("P", "custom_shorts", "Custom Shorts"),
-        Binding("r", "refresh", "Refresh"),
+        Binding("r", "reset_video", "Reset"),
+        Binding("R", "partial_reset", "Partial Reset"),
+        Binding("f5", "refresh", "Refresh"),
         Binding("s", "settings", "Settings"),
         Binding("w", "setup_wizard", "Setup Wizard"),
         Binding("d", "dependencies", "Dependencies"),
@@ -1094,6 +1150,55 @@ class CliperTUI(App):
 
     def action_refresh(self) -> None:
         self.refresh_all()
+
+    def action_reset_video(self) -> None:
+        """Reset selected video(s) completely - clears all processing state."""
+        video_ids = self._selected_or_current_video_ids()
+        if not video_ids:
+            self._write_log("[yellow]No videos selected.[/yellow]")
+            return
+
+        count = len(video_ids)
+        for video_id in video_ids:
+            self.state_manager.reset_video_stages(
+                video_id, ["transcription", "clips", "export", "shorts"]
+            )
+
+        self._write_log(f"[green]Reset {count} video{'s' if count > 1 else ''} completely.[/green]")
+        self.refresh_library()
+
+    async def action_partial_reset(self) -> None:
+        """Show modal to select which stages to reset for selected video(s)."""
+        video_ids = self._selected_or_current_video_ids()
+        if not video_ids:
+            self._write_log("[yellow]No videos selected.[/yellow]")
+            return
+
+        await self.push_screen(
+            ResetStagesModal(video_ids=video_ids, state_manager=self.state_manager),
+            callback=self._on_reset_stages_dismissed,
+        )
+
+    def _on_reset_stages_dismissed(self, result: Optional[Dict[str, object]]) -> None:
+        """Handle result from ResetStagesModal."""
+        if not result:
+            return
+
+        stages: List[str] = list(result.get("stages") or [])  # type: ignore[arg-type]
+        video_ids: List[str] = list(result.get("video_ids") or [])  # type: ignore[arg-type]
+
+        if not stages or not video_ids:
+            return
+
+        for video_id in video_ids:
+            self.state_manager.reset_video_stages(video_id, stages)
+
+        stage_names = ", ".join(stages)
+        count = len(video_ids)
+        self._write_log(
+            f"[green]Reset {stage_names} for {count} video{'s' if count > 1 else ''}.[/green]"
+        )
+        self.refresh_library()
 
     def action_copy_logs(self) -> None:
         """Copy all logs to clipboard (keyboard shortcut: l)."""

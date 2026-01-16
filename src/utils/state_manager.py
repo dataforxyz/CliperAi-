@@ -423,6 +423,48 @@ class StateManager:
             del self.state[video_id]
             self._save_state()
 
+    def reset_video_stages(self, video_id: str, stages: List[str]) -> None:
+        """
+        Resetea etapas específicas de un video para permitir re-procesamiento.
+
+        Args:
+            video_id: ID del video
+            stages: Lista de etapas a resetear: "transcription", "clips", "export", "shorts"
+        """
+        if video_id not in self.state:
+            return
+
+        video = self.state[video_id]
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        if "transcription" in stages:
+            video['transcribed'] = False
+            video['transcription_path'] = None
+            video['transcript_path'] = None
+            # Si reseteamos transcripción, también debemos resetear stages dependientes
+            stages = list(set(stages) | {"clips", "export", "shorts"})
+
+        if "clips" in stages:
+            video['clips_generated'] = False
+            video['clips'] = []
+            video['clips_metadata_path'] = None
+            # Si reseteamos clips, también reseteamos export
+            if "export" not in stages:
+                stages = list(set(stages) | {"export"})
+
+        if "export" in stages:
+            video['clips_exported'] = False
+            video['exported_clips'] = []
+
+        if "shorts" in stages:
+            video['shorts_exported'] = False
+            video['shorts_export_path'] = None
+            video['shorts_srt_path'] = None
+            video['shorts_input_path'] = None
+
+        video['last_updated'] = now
+        self._save_state()
+
     # ---------------------------
     # Jobs / Queue (additive API)
     # ---------------------------
