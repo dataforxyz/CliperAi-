@@ -1,4 +1,4 @@
-.PHONY: help install-make build dev prod start tui tui-docker stop down restart logs shell clean ps test format lint bump bump-patch bump-minor bump-major
+.PHONY: help install-make build dev prod start tui tui-docker stop down restart logs shell clean ps test test-task format lint bump bump-patch bump-minor bump-major
 
 # Default target - show help
 help:
@@ -145,6 +145,33 @@ test:
 	@echo "🧪 Running tests..."
 	docker-compose exec cliper uv run pytest -v
 	@echo "✅ Tests complete!"
+
+# ---------------------------------------------------------------------------
+# Rover Task Testing
+# ---------------------------------------------------------------------------
+# Test inside a rover task workspace
+# Usage:
+#   make test-task TASK=134                                    # Run all tests
+#   make test-task TASK=134 ARGS="tests/test_misspellings.py"  # Run specific test file
+#   make test-task TASK=134 ARGS="-v --tb=short"               # Pass pytest flags
+#   make test-task TASK=134 ARGS="tests/test_foo.py -v -k bar" # Combine file + flags
+TASK ?=
+ARGS ?=
+test-task:
+ifndef TASK
+	@echo "ERROR: TASK number required"
+	@echo "Usage: make test-task TASK=134 [ARGS='...']"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make test-task TASK=134"
+	@echo "  make test-task TASK=134 ARGS='tests/test_misspellings.py -v --tb=short'"
+	@exit 1
+endif
+	@if [ ! -d ".rover/tasks/$(TASK)/workspace" ]; then \
+		echo "ERROR: Task workspace not found: .rover/tasks/$(TASK)/workspace"; \
+		exit 1; \
+	fi
+	cd .rover/tasks/$(TASK)/workspace && uv run pytest $(ARGS)
 
 # Format code with black and isort
 format:

@@ -58,6 +58,17 @@ uv run pytest tests/test_foo.py -v  # Single test file
 uv run pytest -k "test_name" -v     # Tests matching pattern
 ```
 
+### Rover Task Testing
+
+Test inside isolated rover task workspaces:
+
+```bash
+make test-task TASK=134                                      # Run all tests in task workspace
+make test-task TASK=134 ARGS="tests/test_misspellings.py"    # Run specific test file
+make test-task TASK=134 ARGS="-v --tb=short"                 # Pass pytest flags
+make test-task TASK=134 ARGS="tests/test_foo.py -v -k bar"   # Combine file + flags
+```
+
 ## Architecture
 
 7-stage pipeline:
