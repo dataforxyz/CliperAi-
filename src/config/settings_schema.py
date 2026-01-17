@@ -17,7 +17,35 @@ T = TypeVar("T")
 def _validate_type(value: Any, expected_type: type[T]) -> T:
     """
     Small compatibility wrapper for pydantic v1/v2 typed validation.
+
+    Handles type coercion for common cases (None -> "", int -> str, None -> False)
+    before delegating to Pydantic's strict validation.
     """
+    # Handle type coercion for str before Pydantic validation
+    if expected_type is str:
+        if value is None:
+            return ""  # type: ignore[return-value]
+        if isinstance(value, (int, float)):
+            return str(value)  # type: ignore[return-value]
+        if isinstance(value, str):
+            return value  # type: ignore[return-value]
+
+    # Handle type coercion for bool before Pydantic validation
+    if expected_type is bool:
+        if isinstance(value, bool):
+            return value  # type: ignore[return-value]
+        if value is None:
+            return False  # type: ignore[return-value]
+        if isinstance(value, (int, float)):
+            return bool(value)  # type: ignore[return-value]
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"1", "true", "yes", "y", "on"}:
+                return True  # type: ignore[return-value]
+            if lowered in {"0", "false", "no", "n", "off", ""}:
+                return False  # type: ignore[return-value]
+            raise ValueError(f"Invalid boolean value: {value!r}")
+
     try:
         from pydantic import TypeAdapter  # type: ignore
     except (ModuleNotFoundError, ImportError):
@@ -43,21 +71,6 @@ def _validate_type(value: Any, expected_type: type[T]) -> T:
             raise ValueError(msg) from None
 
     # Fallback when pydantic isn't available (e.g., minimal TUI env).
-    if expected_type is str:
-        return "" if value is None else str(value)  # type: ignore[return-value]
-    if expected_type is bool:
-        if isinstance(value, bool):
-            return value  # type: ignore[return-value]
-        if value is None:
-            return False  # type: ignore[return-value]
-        if isinstance(value, (int, float)):
-            return bool(value)  # type: ignore[return-value]
-        lowered = str(value).strip().lower()
-        if lowered in {"1", "true", "yes", "y", "on"}:
-            return True  # type: ignore[return-value]
-        if lowered in {"0", "false", "no", "n", "off", ""}:
-            return False  # type: ignore[return-value]
-        raise ValueError(f"Invalid boolean value: {value!r}")
     if expected_type is int:
         return int(value)  # type: ignore[return-value]
     if expected_type is float:

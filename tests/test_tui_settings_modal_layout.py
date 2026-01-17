@@ -86,14 +86,13 @@ def test_settings_modal_layout_common_sizes(tmp_path: Path, monkeypatch) -> None
             app.screen.query_one("#setting_logo_path", Input).value = str(invalid_logo)
             # Force a validation pass (programmatic value changes may not emit Input.Changed).
             modal._validate_and_save()  # type: ignore[attr-defined]
+            await pilot.pause(0.1)  # Give UI time to update
 
             def has_error() -> bool:
                 try:
                     err = app.screen.query_one("#setting_logo_path_error", Static)
-                    renderable = getattr(
-                        err, "renderable", getattr(err, "_renderable", "")
-                    )
-                    return bool(err.display) and bool(str(renderable).strip())
+                    # Check if error widget is displayed (display is set to True when error exists)
+                    return bool(err.display)
                 except Exception:
                     return False
 

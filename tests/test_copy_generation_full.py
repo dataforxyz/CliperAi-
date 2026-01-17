@@ -7,7 +7,7 @@ from pathlib import Path
 # Agregar directorio raíz al path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.copys_generator import generate_copys_for_video
+from src.copys_generator import CopysGenerator
 
 
 def test_full_generation():
@@ -25,7 +25,8 @@ def test_full_generation():
     print(f"🤖 Model: {model}")
     print()
 
-    result = generate_copys_for_video(video_id=video_id, model=model)
+    generator = CopysGenerator(video_id=video_id, model=model)
+    result = generator.generate()
 
     print("\n" + "=" * 80)
     print("RESULTADO:")

@@ -47,11 +47,6 @@
 - **Inputs:** `dry_run: bool`
 - **Outputs:** `Dict[str, bool]` (result for each directory: downloads, temp, output, cache, state)
 
-**Function:** `display_cleanable_artifacts(video_key: Optional[str] = None)`
-- **Purpose:** Displays table of cleanable artifacts
-- **Inputs:** `video_key: Optional[str]` (if None, shows all videos)
-- **Outputs:** None (prints Rich table)
-
 ## Utilities
 
 **Module:** `src/utils/logger.py`

@@ -18,10 +18,9 @@ class TestSubtitleGeneratorInit:
     """Tests for SubtitleGenerator instantiation."""
 
     def test_instantiation(self):
-        """SubtitleGenerator initializes with console and logger."""
+        """SubtitleGenerator initializes with logger."""
         generator = SubtitleGenerator()
 
-        assert generator.console is not None
         assert generator.logger is not None
 
 

@@ -81,13 +81,3 @@
     }
   }
   ```
-
-### Helper Function
-
-**Function:** `generate_copys_for_video(video_id: str, model: str = "gemini-2.0-flash-exp") -> Dict`
-- **Purpose:** Convenience function for CLI usage
-- **Inputs:**
-  - `video_id: str`
-  - `model: str` (optional)
-- **Outputs:** Same as `CopysGenerator.generate()`
-- **Side Effects:** Reads clips metadata and writes `output/{video_id}/copys/` artifacts

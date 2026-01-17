@@ -12,7 +12,6 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Optional
 
-from rich.console import Console
 from rich.progress import Progress
 
 from src.reframer import FaceReframer
@@ -81,7 +80,6 @@ class VideoExporter:
     def __init__(self, output_dir: str = "output"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.console = Console()
         self.subtitle_generator = SubtitleGenerator()
 
         # Verifico que ffmpeg esté instalado
@@ -830,7 +828,7 @@ class VideoExporter:
         output = "[v_out]"
 
         filter_chains = [
-            f"{logo_stream}{video_stream}scale2ref=w=2*trunc(iw*{scale}/2):h=2*trunc(iw*{scale}*main_h/main_w/2){logo_scaled}{video_for_overlay}",
+            f"{logo_stream}{video_stream}scale2ref=w=2*trunc(main_w*{scale}/2):h=2*trunc(main_w*{scale}*main_h/main_w/2){logo_scaled}{video_for_overlay}",
             f"{video_for_overlay}{logo_scaled}overlay={pos}{output}",
         ]
         return filter_chains, output

@@ -9,8 +9,6 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from rich.console import Console
-
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -28,7 +26,6 @@ class SubtitleGenerator:
     """
 
     def __init__(self):
-        self.console = Console()
         self.logger = logger
 
     def generate_srt_from_transcript(

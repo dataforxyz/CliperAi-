@@ -302,7 +302,20 @@ class CustomShortsModal(ModalScreen[Optional[dict[str, object]]]):
                     yield Static("Logo / Watermark", classes="group-title")
                     yield Checkbox("Add logo to video", id="add_logo", value=True)
                     with Vertical(classes="setting-field"):
-                        yield Static("Logo file:", classes="field-label")
+                        yield Static("Logo source:", classes="field-label")
+                        yield Static(
+                            "Select logo option or use custom path",
+                            classes="help-text",
+                        )
+                        table = DataTable(id="logo_table")
+                        table.cursor_type = "row"
+                        table.add_columns("Logo Option")
+                        table.add_row("Use default (from settings)", key="__default__")
+                        table.add_row("Built-in (assets/logo.png)", key="__builtin__")
+                        table.add_row("Custom path (below)", key="__custom__")
+                        yield table
+                    with Vertical(classes="setting-field"):
+                        yield Static("Custom logo path:", classes="field-label")
                         yield Static(
                             "Path to any PNG/JPG image on your computer",
                             classes="help-text",
@@ -403,9 +416,17 @@ class CustomShortsModal(ModalScreen[Optional[dict[str, object]]]):
             add_logo = bool(self.query_one("#add_logo", Checkbox).value)
             result["add_logo"] = add_logo
             if add_logo:
-                logo_path = self.query_one("#logo_path_input", Input).value.strip()
-                if logo_path:
-                    result["logo_path"] = logo_path
+                # Check logo table selection
+                logo_table = self.query_one("#logo_table", DataTable)
+                selected_logo_key = self._get_selected_row_key_value(logo_table) or "__default__"
+
+                if selected_logo_key == "__builtin__":
+                    result["logo_path"] = "assets/logo.png"
+                elif selected_logo_key == "__custom__":
+                    logo_path = self.query_one("#logo_path_input", Input).value.strip()
+                    if logo_path:
+                        result["logo_path"] = logo_path
+                # If "__default__", don't set logo_path (use settings default)
             logo_position = (
                 self.query_one("#logo_position", Input).value.strip().lower()
             )
@@ -1005,6 +1026,13 @@ class CliperTUI(App):
     #source_table {
         height: 6;
         min-height: 4;
+        border: solid $panel;
+        margin-bottom: 1;
+    }
+
+    #logo_table {
+        height: 5;
+        min-height: 3;
         border: solid $panel;
         margin-bottom: 1;
     }

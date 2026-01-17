@@ -1052,30 +1052,3 @@ Responde SOLO con JSON válido (sin markdown):"""
             },
             "logs": result.get("logs", []),
         }
-
-
-# ============================================================================
-# HELPER FUNCTION FOR CLI
-# ============================================================================
-
-
-def generate_copys_for_video(
-    video_id: str, model: str = "gemini-2.0-flash-exp"
-) -> dict:
-    """
-    Helper function para usar desde CLI.
-
-    Args:
-        video_id: ID del video
-        model: Modelo de Gemini
-
-    Returns:
-        Dict con resultados
-
-    Ejemplo:
-        result = generate_copys_for_video("AI_CDMX_Live_Stream_gjPVlCHU9OM")
-        if result['success']:
-            print(f"✅ Guardado en: {result['output_file']}")
-    """
-    generator = CopysGenerator(video_id=video_id, model=model)
-    return generator.generate()

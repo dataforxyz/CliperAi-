@@ -699,7 +699,6 @@ dependencies = [
     { name = "rich" },
     { name = "textual" },
     { name = "tqdm" },
-    { name = "typer" },
     { name = "whisperx" },
     { name = "yt-dlp", version = "2025.10.14", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "yt-dlp", version = "2025.10.22", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -743,7 +742,6 @@ requires-dist = [
     { name = "rich", specifier = ">=14.2.0" },
     { name = "textual", specifier = ">=0.80.0" },
     { name = "tqdm" },
-    { name = "typer" },
     { name = "whisperx", git = "https://github.com/m-bain/whisperx.git" },
     { name = "yt-dlp" },
 ]

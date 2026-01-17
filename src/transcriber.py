@@ -164,6 +164,10 @@ class Transcriber:
         # Me aseguro de que temp/ exista
         Path("temp").mkdir(parents=True, exist_ok=True)
 
+        # Convierto a rutas absolutas para consistencia
+        audio_path = audio_path.resolve()
+        transcript_path = transcript_path.resolve()
+
         # Si ya existe transcripción y skip_if_exists=True, la retorno
         if skip_if_exists and transcript_path.exists():
             self.logger.info(f"Transcripción ya existe: {transcript_path}")

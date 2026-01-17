@@ -17,9 +17,6 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from rich.console import Console
-from rich.table import Table
-
 from src.utils.logger import get_logger
 from src.utils.state_manager import StateManager
 
@@ -61,7 +58,6 @@ class CleanupManager:
         self.output_dir = Path(output_dir)
 
         self.state_manager = StateManager()
-        self.console = Console()
 
         logger.debug(
             f"CleanupManager initialized: "
@@ -502,66 +498,3 @@ class CleanupManager:
         except Exception as e:
             logger.error(f"Error cleaning cache and residuals: {e}")
             return False
-
-    def display_cleanable_artifacts(self, video_key: Optional[str] = None):
-        """
-        Muestra tabla de artifacts que se pueden limpiar
-
-        DECISIÓN: Rich table para UX profesional
-        - Tamaños en MB para decisiones informadas
-        - Total por video para ver impacto
-        - Visual claro de qué se puede eliminar
-
-        Args:
-            video_key: Si se provee, muestra solo ese video. Si None, muestra todos.
-        """
-        state = self.state_manager.get_all_videos()
-
-        if video_key:
-            video_keys = [video_key] if video_key in state else []
-        else:
-            video_keys = list(state.keys())
-
-        if not video_keys:
-            self.console.print("[yellow]No videos found in project[/yellow]")
-            return
-
-        table = Table(title="Cleanable Artifacts")
-        table.add_column("Video", style="cyan", no_wrap=False)
-        table.add_column("Download", justify="right")
-        table.add_column("Transcript", justify="right")
-        table.add_column("Clips Meta", justify="right")
-        table.add_column("Output", justify="right")
-        table.add_column("Total", justify="right", style="bold")
-
-        for vkey in video_keys:
-            artifacts = self.get_video_artifacts(vkey)
-
-            def format_size(size_bytes):
-                if size_bytes == 0:
-                    return "-"
-                mb = size_bytes / 1024 / 1024
-                if mb < 0.1:
-                    return f"{size_bytes / 1024:.1f} KB"
-                return f"{mb:.1f} MB"
-
-            download_size = artifacts.get("download", {}).get("size", 0)
-            transcript_size = artifacts.get("transcript", {}).get("size", 0)
-            clips_size = artifacts.get("clips_metadata", {}).get("size", 0)
-            output_size = artifacts.get("output", {}).get("size", 0)
-
-            total_size = download_size + transcript_size + clips_size + output_size
-
-            # Nombre corto del video (primeras 40 chars)
-            video_name = vkey[:40] + "..." if len(vkey) > 40 else vkey
-
-            table.add_row(
-                video_name,
-                format_size(download_size),
-                format_size(transcript_size),
-                format_size(clips_size),
-                format_size(output_size),
-                format_size(total_size),
-            )
-
-        self.console.print(table)
