@@ -86,7 +86,10 @@ def test_ffmpeg_command_with_audio_mapping():
     print("- Correcto: 2 inputs (-i reframed -i original), mapea audio de [1:a]")
     print("- Incorrecto: 1 input (reframed sin audio), no puede encodear audio")
 
-    return cmd_correct
+    # Verify the correct command has the expected structure
+    assert cmd_correct is not None
+    assert "-map" in cmd_correct
+    assert "1:a" in cmd_correct  # Audio mapped from second input
 
 
 def test_ffmpeg_without_face_tracking():

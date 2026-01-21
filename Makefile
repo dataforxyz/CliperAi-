@@ -1,4 +1,4 @@
-.PHONY: help install-make build dev prod start tui tui-docker stop down restart logs shell clean ps test test-task format lint bump bump-patch bump-minor bump-major
+.PHONY: help install-make build dev prod start tui tui-docker stop down restart logs shell clean ps test test-local test-task format lint bump bump-patch bump-minor bump-major
 
 # Default target - show help
 help:
@@ -29,7 +29,8 @@ help:
 	@echo "  make clean-cache    Clean Python cache and WhisperX models"
 	@echo ""
 	@echo "💻 Development Commands:"
-	@echo "  make test           Run tests inside container"
+	@echo "  make test           Run tests in Docker (default)"
+	@echo "  make test-local     Run tests locally with uv"
 	@echo "  make format         Format code with black and isort"
 	@echo "  make lint           Run code linting"
 	@echo "  make bump-patch        Bump patch version (0.0.X)"
@@ -140,10 +141,16 @@ clean-cache:
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Cache cleaned!"
 
-# Run tests inside container
+# Run tests in Docker (default)
 test:
-	@echo "🧪 Running tests..."
-	docker-compose exec cliper uv run pytest -v
+	@echo "🧪 Running tests in Docker..."
+	docker-compose run --rm cliper uv run pytest -v
+	@echo "✅ Tests complete!"
+
+# Run tests locally with uv
+test-local:
+	@echo "🧪 Running tests locally..."
+	uv run pytest -v
 	@echo "✅ Tests complete!"
 
 # ---------------------------------------------------------------------------

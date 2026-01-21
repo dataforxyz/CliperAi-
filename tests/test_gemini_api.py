@@ -36,12 +36,9 @@ def test_api_key():
 
     api_key = os.getenv("GOOGLE_API_KEY")
 
-    if not api_key:
-        print("❌ FAIL: GOOGLE_API_KEY no está configurada en .env")
-        return False
+    assert api_key, "GOOGLE_API_KEY no está configurada en .env"
 
     print(f"✓ API Key encontrada: {api_key[:20]}...")
-    return True
 
 
 def test_basic_connection():
@@ -50,18 +47,12 @@ def test_basic_connection():
     print("TEST 2: Basic Model Connection")
     print("=" * 60)
 
-    try:
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
 
-        response = llm.invoke("Say 'Hello World' in one sentence.")
-        print("✓ Modelo inicializado correctamente")
-        print(f"✓ Respuesta: {response.content}")
-        return True
-
-    except Exception as e:
-        print("❌ FAIL: Error al conectar con el modelo")
-        print(f"   Error: {e}")
-        return False
+    response = llm.invoke("Say 'Hello World' in one sentence.")
+    print("✓ Modelo inicializado correctamente")
+    print(f"✓ Respuesta: {response.content}")
+    assert response.content is not None
 
 
 def test_json_generation():
@@ -70,10 +61,9 @@ def test_json_generation():
     print("TEST 3: JSON Generation")
     print("=" * 60)
 
-    try:
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
 
-        prompt = """Generate a JSON object with the following structure:
+    prompt = """Generate a JSON object with the following structure:
 {
   "name": "John Doe",
   "age": 30,
@@ -82,32 +72,22 @@ def test_json_generation():
 
 Respond ONLY with valid JSON (no markdown, no explanations):"""
 
-        response = llm.invoke(prompt)
-        response_text = response.content.strip()
+    response = llm.invoke(prompt)
+    response_text = response.content.strip()
 
-        # Limpiar respuesta si viene con markdown
-        if "```json" in response_text:
-            response_text = response_text.split("```json")[1].split("```")[0]
-        response_text = response_text.strip()
+    # Limpiar respuesta si viene con markdown
+    if "```json" in response_text:
+        response_text = response_text.split("```json")[1].split("```")[0]
+    response_text = response_text.strip()
 
-        print(f"Raw response:\n{response_text}\n")
+    print(f"Raw response:\n{response_text}\n")
 
-        # Intentar parsear JSON
-        data = json.loads(response_text)
+    # Intentar parsear JSON
+    data = json.loads(response_text)
 
-        print("✓ JSON válido generado")
-        print(f"✓ Datos parseados: {data}")
-        return True
-
-    except json.JSONDecodeError as e:
-        print("❌ FAIL: El modelo no generó JSON válido")
-        print(f"   Error: {e}")
-        print(f"   Response: {response_text}")
-        return False
-    except Exception as e:
-        print("❌ FAIL: Error al generar JSON")
-        print(f"   Error: {e}")
-        return False
+    print("✓ JSON válido generado")
+    print(f"✓ Datos parseados: {data}")
+    assert data is not None
 
 
 def test_clip_classification():
@@ -116,17 +96,16 @@ def test_clip_classification():
     print("TEST 4: Clip Classification (Real Use Case)")
     print("=" * 60)
 
-    try:
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
 
-        # Simular un clip real
-        clip_data = {
-            "clip_id": 1,
-            "transcript": "Hoy vamos a hablar sobre React hooks. Los hooks son una forma de usar state y otras características de React sin escribir una clase. El hook más común es useState.",
-            "duration": 45,
-        }
+    # Simular un clip real
+    clip_data = {
+        "clip_id": 1,
+        "transcript": "Hoy vamos a hablar sobre React hooks. Los hooks son una forma de usar state y otras características de React sin escribir una clase. El hook más común es useState.",
+        "duration": 45,
+    }
 
-        prompt = f"""Clasifica este clip de video en uno de estos estilos: viral, educational, storytelling.
+    prompt = f"""Clasifica este clip de video en uno de estos estilos: viral, educational, storytelling.
 
 Clip:
 {json.dumps(clip_data, indent=2, ensure_ascii=False)}
@@ -139,45 +118,32 @@ Responde SOLO con JSON en este formato (sin markdown):
   "reason": "Brief explanation"
 }}"""
 
-        response = llm.invoke(prompt)
-        response_text = response.content.strip()
+    response = llm.invoke(prompt)
+    response_text = response.content.strip()
 
-        # Limpiar respuesta
-        if "```json" in response_text:
-            response_text = response_text.split("```json")[1].split("```")[0]
-        response_text = response_text.strip()
+    # Limpiar respuesta
+    if "```json" in response_text:
+        response_text = response_text.split("```json")[1].split("```")[0]
+    response_text = response_text.strip()
 
-        print(f"Raw response:\n{response_text}\n")
+    print(f"Raw response:\n{response_text}\n")
 
-        # Parsear JSON
-        classification = json.loads(response_text)
+    # Parsear JSON
+    classification = json.loads(response_text)
 
-        # Validar estructura
-        required_fields = ["clip_id", "style", "confidence", "reason"]
-        for field in required_fields:
-            if field not in classification:
-                print(f"❌ FAIL: Falta el campo '{field}' en la respuesta")
-                return False
+    # Validar estructura
+    required_fields = ["clip_id", "style", "confidence", "reason"]
+    for field in required_fields:
+        assert field in classification, f"Falta el campo '{field}' en la respuesta"
 
-        # Validar que style sea válido
-        valid_styles = ["viral", "educational", "storytelling"]
-        if classification["style"] not in valid_styles:
-            print(f"❌ FAIL: Style '{classification['style']}' no es válido")
-            return False
+    # Validar que style sea válido
+    valid_styles = ["viral", "educational", "storytelling"]
+    assert classification["style"] in valid_styles, f"Style '{classification['style']}' no es válido"
 
-        print("✓ Clasificación correcta generada")
-        print(f"✓ Style: {classification['style']}")
-        print(f"✓ Confidence: {classification['confidence']}")
-        print(f"✓ Reason: {classification['reason']}")
-        return True
-
-    except Exception as e:
-        print("❌ FAIL: Error en clasificación")
-        print(f"   Error: {e}")
-        import traceback
-
-        print(f"   Traceback:\n{traceback.format_exc()}")
-        return False
+    print("✓ Clasificación correcta generada")
+    print(f"✓ Style: {classification['style']}")
+    print(f"✓ Confidence: {classification['confidence']}")
+    print(f"✓ Reason: {classification['reason']}")
 
 
 def test_copy_generation():
@@ -186,17 +152,16 @@ def test_copy_generation():
     print("TEST 5: Copy Generation (Real Use Case)")
     print("=" * 60)
 
-    try:
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.8)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.8)
 
-        # Simular un clip real
-        clip_data = {
-            "clip_id": 1,
-            "transcript": "Hoy vamos a hablar sobre React hooks. Los hooks son una forma de usar state y otras características de React sin escribir una clase.",
-            "duration": 45,
-        }
+    # Simular un clip real
+    clip_data = {
+        "clip_id": 1,
+        "transcript": "Hoy vamos a hablar sobre React hooks. Los hooks son una forma de usar state y otras características de React sin escribir una clase.",
+        "duration": 45,
+    }
 
-        prompt = f"""Genera un copy viral para este clip de video sobre tecnología.
+    prompt = f"""Genera un copy viral para este clip de video sobre tecnología.
 
 Requisitos:
 - Mezcla español e inglés (code-switching)
@@ -220,42 +185,28 @@ Responde SOLO con JSON (sin markdown):
   }}
 }}"""
 
-        response = llm.invoke(prompt)
-        response_text = response.content.strip()
+    response = llm.invoke(prompt)
+    response_text = response.content.strip()
 
-        # Limpiar respuesta
-        if "```json" in response_text:
-            response_text = response_text.split("```json")[1].split("```")[0]
-        response_text = response_text.strip()
+    # Limpiar respuesta
+    if "```json" in response_text:
+        response_text = response_text.split("```json")[1].split("```")[0]
+    response_text = response_text.strip()
 
-        print(f"Raw response:\n{response_text}\n")
+    print(f"Raw response:\n{response_text}\n")
 
-        # Parsear JSON
-        copy_data = json.loads(response_text)
+    # Parsear JSON
+    copy_data = json.loads(response_text)
 
-        # Validar estructura
-        if "copy" not in copy_data:
-            print("❌ FAIL: Falta el campo 'copy'")
-            return False
+    # Validar estructura
+    assert "copy" in copy_data, "Falta el campo 'copy'"
 
-        # Validar que tenga #AICDMX
-        if "#AICDMX" not in copy_data["copy"].upper():
-            print("❌ FAIL: El copy no incluye #AICDMX")
-            print(f"   Copy: {copy_data['copy']}")
-            return False
+    # Validar que tenga #AICDMX
+    assert "#AICDMX" in copy_data["copy"].upper(), f"El copy no incluye #AICDMX: {copy_data['copy']}"
 
-        print("✓ Copy generado correctamente")
-        print(f"✓ Copy: {copy_data['copy']}")
-        print(f"✓ Metadata: {copy_data.get('metadata', {})}")
-        return True
-
-    except Exception as e:
-        print("❌ FAIL: Error generando copy")
-        print(f"   Error: {e}")
-        import traceback
-
-        print(f"   Traceback:\n{traceback.format_exc()}")
-        return False
+    print("✓ Copy generado correctamente")
+    print(f"✓ Copy: {copy_data['copy']}")
+    print(f"✓ Metadata: {copy_data.get('metadata', {})}")
 
 
 def main():
@@ -277,10 +228,10 @@ def main():
     results = []
     for test in tests:
         try:
-            result = test()
-            results.append(result)
+            test()
+            results.append(True)
         except Exception as e:
-            print(f"\n❌ Test crashed: {e}")
+            print(f"\n Test failed: {e}")
             import traceback
 
             print(traceback.format_exc())
@@ -295,7 +246,7 @@ def main():
     total = len(results)
 
     for i, (test, result) in enumerate(zip(tests, results), 1):
-        status = "✓ PASS" if result else "✗ FAIL"
+        status = "PASS" if result else "FAIL"
         print(f"{status} - Test {i}: {test.__name__}")
 
     print()
@@ -303,11 +254,11 @@ def main():
 
     if passed == total:
         print(
-            "\n🎉 ¡Todos los tests pasaron! La API de Gemini está funcionando correctamente."
+            "\nTodos los tests pasaron! La API de Gemini está funcionando correctamente."
         )
         return 0
     else:
-        print(f"\n⚠️  {total - passed} test(s) fallaron. Revisa la configuración.")
+        print(f"\n{total - passed} test(s) fallaron. Revisa la configuración.")
         return 1
 
 

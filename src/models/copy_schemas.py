@@ -171,18 +171,23 @@ class ClipCopy(BaseModel):
         description="ID del clip (1, 2, 3, ...) - corresponde al archivo {clip_id}.mp4",
     )
 
-    copy: str = Field(
+    copy_text: str = Field(
         min_length=20,  # Muy corto = poco contexto
         max_length=200,  # Permisivo (se ajustará en validador)
         description="Caption completo con hashtags integrados",
+        alias="copy",  # Mantiene compatibilidad con JSON/API contracts
     )
 
     metadata: CopyMetadata = Field(description="Análisis predictivo del clip")
 
+    model_config = {
+        "populate_by_name": True,  # Permite usar tanto "copy" como "copy_text"
+    }
+
     # Validador 1: Truncar inteligentemente si > 150 chars
     # Validador 2: copy debe tener al menos 1 hashtag
     # Validador 3: copy DEBE incluir #AICDMX (branding obligatorio)
-    @field_validator("copy", mode="before")
+    @field_validator("copy_text", mode="before")
     @classmethod
     def truncate_and_validate_copy(cls, v):
         """

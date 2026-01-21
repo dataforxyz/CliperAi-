@@ -755,10 +755,10 @@ Responde SOLO con JSON válido (sin markdown):"""
                 try:
                     # Ya está validado por Pydantic en _generate_copies_for_style
                     # Pero double-check aquí
-                    if not copy.copy or len(copy.copy) < 20:
+                    if not copy.copy_text or len(copy.copy_text) < 20:
                         validation_errors.append(f"Clip {copy.clip_id}: copy muy corto")
 
-                    if "#AICDMX" not in copy.copy.upper():
+                    if "#AICDMX" not in copy.copy_text.upper():
                         validation_errors.append(f"Clip {copy.clip_id}: falta #AICDMX")
 
                 except Exception as e:

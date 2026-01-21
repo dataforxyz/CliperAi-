@@ -326,7 +326,7 @@ class TestClipCopyCopyValidator:
         """Valid copy with hashtags including #AICDMX should pass."""
         valid_clip_copy_dict["copy"] = "Great content here! #Tech #AICDMX"
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert clip.copy == "Great content here! #Tech #AICDMX"
+        assert clip.copy_text == "Great content here! #Tech #AICDMX"
 
     def test_copy_without_hashtag_rejected(self, valid_clip_copy_dict):
         """Copy without any hashtag should raise ValidationError."""
@@ -346,7 +346,7 @@ class TestClipCopyCopyValidator:
         """#AICDMX check should be case-insensitive."""
         valid_clip_copy_dict["copy"] = "Great content here! #aicdmx #Tech"
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert "#aicdmx" in clip.copy
+        assert "#aicdmx" in clip.copy_text
 
     def test_long_copy_truncated(self, valid_clip_copy_dict):
         """Copy over 150 chars should be truncated."""
@@ -354,7 +354,7 @@ class TestClipCopyCopyValidator:
         long_copy = "A" * 140 + " #AICDMX #ExtraHashtag"
         valid_clip_copy_dict["copy"] = long_copy
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert len(clip.copy) <= 150
+        assert len(clip.copy_text) <= 150
 
     def test_truncation_preserves_aicdmx(self, valid_clip_copy_dict):
         """Truncation should preserve #AICDMX hashtag."""
@@ -362,7 +362,7 @@ class TestClipCopyCopyValidator:
         long_copy = "A" * 120 + " #AICDMX #RemoveThis"
         valid_clip_copy_dict["copy"] = long_copy
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert "#AICDMX" in clip.copy.upper()
+        assert "#AICDMX" in clip.copy_text.upper()
 
     def test_exactly_150_chars_passes(self, valid_clip_copy_dict):
         """Copy of exactly 150 chars should pass without truncation."""
@@ -374,7 +374,7 @@ class TestClipCopyCopyValidator:
         exact_copy = "A" * (150 - 9) + " #AICDMX"  # " #AICDMX" is 8 chars
         valid_clip_copy_dict["copy"] = exact_copy
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert len(clip.copy) <= 150
+        assert len(clip.copy_text) <= 150
 
 
 # ============================================================================
@@ -419,7 +419,7 @@ class TestClipCopyFieldConstraints:
         valid_clip_copy_dict["copy"] = "Good stuff! #AICDMX"  # 19 chars, need 1 more
         valid_clip_copy_dict["copy"] = "Good stuff!! #AICDMX"  # 20 chars
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert len(clip.copy) >= 20
+        assert len(clip.copy_text) >= 20
 
 
 # ============================================================================
@@ -787,13 +787,13 @@ class TestEdgeCases:
         """Copy with only #AICDMX hashtag should pass."""
         valid_clip_copy_dict["copy"] = "This is great content! #AICDMX"
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert "#AICDMX" in clip.copy
+        assert "#AICDMX" in clip.copy_text
 
     def test_clip_copy_with_unicode_characters(self, valid_clip_copy_dict):
         """Copy with unicode/emoji should work."""
         valid_clip_copy_dict["copy"] = "Amazing content here! 🚀🔥 #Tech #AICDMX"
         clip = ClipCopy(**valid_clip_copy_dict)
-        assert "🚀" in clip.copy
+        assert "🚀" in clip.copy_text
 
     def test_metadata_with_float_as_int(self, valid_metadata_dict):
         """Integer values for float fields should be coerced."""

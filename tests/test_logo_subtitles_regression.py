@@ -176,28 +176,20 @@ def test_logo_only():
             }
         ]
 
-        try:
-            result = exporter.export_clips(
-                video_path=str(video),
-                clips=clips,
-                aspect_ratio="16:9",
-                add_logo=True,
-                logo_path=str(logo),
-                logo_position="top-right",
-                logo_scale=0.1,
-                add_subtitles=False,  # Sin subtítulos
-            )
+        result = exporter.export_clips(
+            video_path=str(video),
+            clips=clips,
+            aspect_ratio="16:9",
+            add_logo=True,
+            logo_path=str(logo),
+            logo_position="top-right",
+            logo_scale=0.1,
+            add_subtitles=False,  # Sin subtítulos
+        )
 
-            if result and Path(result[0]).exists():
-                print("✓ PASS: Logo-only export successful")
-                return True
-            else:
-                print("✗ FAIL: Output file not created")
-                return False
-
-        except Exception as e:
-            print(f"✗ FAIL: {e}")
-            return False
+        assert result, "Output file not created"
+        assert Path(result[0]).exists(), f"Output file does not exist: {result[0]}"
+        print("PASS: Logo-only export successful")
 
 
 def test_subtitles_only():
@@ -230,27 +222,19 @@ def test_subtitles_only():
             }
         ]
 
-        try:
-            result = exporter.export_clips(
-                video_path=str(video),
-                clips=clips,
-                aspect_ratio="16:9",
-                add_subtitles=True,
-                transcript_path=str(transcript),
-                subtitle_style="default",
-                add_logo=False,  # Sin logo
-            )
+        result = exporter.export_clips(
+            video_path=str(video),
+            clips=clips,
+            aspect_ratio="16:9",
+            add_subtitles=True,
+            transcript_path=str(transcript),
+            subtitle_style="default",
+            add_logo=False,  # Sin logo
+        )
 
-            if result and Path(result[0]).exists():
-                print("✓ PASS: Subtitles-only export successful")
-                return True
-            else:
-                print("✗ FAIL: Output file not created")
-                return False
-
-        except Exception as e:
-            print(f"✗ FAIL: {e}")
-            return False
+        assert result, "Output file not created"
+        assert Path(result[0]).exists(), f"Output file does not exist: {result[0]}"
+        print("PASS: Subtitles-only export successful")
 
 
 def test_logo_and_subtitles():
@@ -291,63 +275,50 @@ def test_logo_and_subtitles():
             }
         ]
 
-        try:
-            print("\nExportando con logo + subtítulos...")
-            result = exporter.export_clips(
-                video_path=str(video),
-                clips=clips,
-                aspect_ratio="16:9",
-                add_logo=True,
-                logo_path=str(logo),
-                logo_position="top-right",
-                logo_scale=0.1,
-                add_subtitles=True,
-                transcript_path=str(transcript),
-                subtitle_style="default",
-            )
+        print("\nExportando con logo + subtítulos...")
+        result = exporter.export_clips(
+            video_path=str(video),
+            clips=clips,
+            aspect_ratio="16:9",
+            add_logo=True,
+            logo_path=str(logo),
+            logo_position="top-right",
+            logo_scale=0.1,
+            add_subtitles=True,
+            transcript_path=str(transcript),
+            subtitle_style="default",
+        )
 
-            if result and Path(result[0]).exists():
-                output_file = Path(result[0])
-                print(f"✓ Output created: {output_file}")
-                print(f"✓ File size: {output_file.stat().st_size / 1024:.1f} KB")
+        assert result, "Output file not created"
+        assert Path(result[0]).exists(), f"Output file does not exist: {result[0]}"
 
-                # Verificación básica: El archivo debe tener audio y video streams
-                cmd = [
-                    "ffprobe",
-                    "-v",
-                    "error",
-                    "-show_entries",
-                    "stream=codec_type",
-                    "-of",
-                    "default=noprint_wrappers=1",
-                    str(output_file),
-                ]
+        output_file = Path(result[0])
+        print(f"Output created: {output_file}")
+        print(f"File size: {output_file.stat().st_size / 1024:.1f} KB")
 
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, check=False
-                )
+        # Verificación básica: El archivo debe tener audio y video streams
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "default=noprint_wrappers=1",
+            str(output_file),
+        ]
 
-                if "video" in result.stdout and "audio" in result.stdout:
-                    print("✓ PASS: File has both video and audio streams")
-                    print("\n⚠️  MANUAL VERIFICATION NEEDED:")
-                    print(f"   1. Open the output file: {output_file}")
-                    print("   2. Check that subtitles appear ONCE (not duplicated)")
-                    print("   3. Check that logo is visible in top-right corner")
-                    return True
-                else:
-                    print("✗ FAIL: Missing streams")
-                    return False
+        probe_result = subprocess.run(
+            cmd, capture_output=True, text=True, check=False
+        )
 
-            else:
-                print("✗ FAIL: Output file not created")
-                return False
-
-        except Exception as e:
-            print(f"✗ FAIL: {e}")
-            import traceback
-
-            traceback.print_exc()
-            return False
+        assert "video" in probe_result.stdout, "Missing video stream"
+        assert "audio" in probe_result.stdout, "Missing audio stream"
+        print("PASS: File has both video and audio streams")
+        print("\nMANUAL VERIFICATION NEEDED:")
+        print(f"   1. Open the output file: {output_file}")
+        print("   2. Check that subtitles appear ONCE (not duplicated)")
+        print("   3. Check that logo is visible in top-right corner")
 
 
 def main():
@@ -366,29 +337,38 @@ def main():
         subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
         subprocess.run(["ffprobe", "-version"], capture_output=True, check=True)
     except (FileNotFoundError, subprocess.CalledProcessError):
-        print("\n✗ ERROR: ffmpeg and ffprobe must be installed")
+        print("\nERROR: ffmpeg and ffprobe must be installed")
         return False
 
-    results = {
-        "test_1_logo_only": test_logo_only(),
-        "test_2_subtitles_only": test_subtitles_only(),
-        "test_3_logo_and_subtitles": test_logo_and_subtitles(),
-    }
+    tests = [
+        ("test_1_logo_only", test_logo_only),
+        ("test_2_subtitles_only", test_subtitles_only),
+        ("test_3_logo_and_subtitles", test_logo_and_subtitles),
+    ]
+
+    results = {}
+    for test_name, test_func in tests:
+        try:
+            test_func()
+            results[test_name] = True
+        except (AssertionError, Exception) as e:
+            print(f"\nFAIL: {test_name} - {e}")
+            results[test_name] = False
 
     print("\n" + "=" * 70)
     print("TEST SUMMARY")
     print("=" * 70)
 
     for test_name, passed in results.items():
-        status = "✓ PASS" if passed else "✗ FAIL"
+        status = "PASS" if passed else "FAIL"
         print(f"{status}: {test_name}")
 
     all_passed = all(results.values())
 
     if all_passed:
-        print("\n✅ All tests passed!")
+        print("\nAll tests passed!")
     else:
-        print("\n❌ Some tests failed")
+        print("\nSome tests failed")
 
     return all_passed
 

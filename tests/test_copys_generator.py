@@ -786,7 +786,7 @@ class TestGenerateNodes:
         assert "viral_copies" in result
         assert len(result["viral_copies"]) == 2
         assert result["viral_copies"][0].clip_id == 1
-        assert "#AICDMX" in result["viral_copies"][0].copy.upper()
+        assert "#AICDMX" in result["viral_copies"][0].copy_text.upper()
 
     def test_generate_educational_node(
         self, monkeypatch, sample_clips_data, mock_copy_response_educational
@@ -1002,8 +1002,8 @@ class TestValidateStructureNode:
                 viral_potential=7.0,
             ),
         )
-        # Manually override copy to remove hashtag (simulating bad data)
-        object.__setattr__(copy_obj, "copy", "Test copy without branding hashtag")
+        # Manually override copy_text to remove hashtag (simulating bad data)
+        object.__setattr__(copy_obj, "copy_text", "Test copy without branding hashtag")
 
         state = {"all_copies": [copy_obj], "logs": []}
 
@@ -1036,8 +1036,8 @@ class TestValidateStructureNode:
                 viral_potential=7.0,
             ),
         )
-        # Manually override copy to be too short
-        object.__setattr__(copy_obj, "copy", "Short #AICDMX")  # 13 chars
+        # Manually override copy_text to be too short
+        object.__setattr__(copy_obj, "copy_text", "Short #AICDMX")  # 13 chars
 
         state = {"all_copies": [copy_obj], "logs": []}
 
@@ -1525,8 +1525,8 @@ class TestPydanticValidators:
             ),
         )
 
-        assert len(clip.copy) <= 150
-        assert "#AICDMX" in clip.copy.upper()
+        assert len(clip.copy_text) <= 150
+        assert "#AICDMX" in clip.copy_text.upper()
 
     def test_sentiment_normalization(self):
         """Verify hybrid sentiments are normalized."""

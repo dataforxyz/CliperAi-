@@ -37,8 +37,11 @@ make logs           # View container logs (follow mode)
 make shell          # Open bash shell inside container
 make ps             # Show running containers
 
+# Testing
+make test           # Run tests in Docker (default)
+make test-local     # Run tests locally with uv
+
 # Code quality (runs inside Docker container)
-make test           # Run pytest -v
 make format         # Run black and isort
 make lint           # Run black --check, isort --check, mypy src/
 
@@ -50,10 +53,15 @@ make clean          # Remove containers, volumes, Docker images
 make clean-cache    # Remove __pycache__, .pyc, .egg-info files
 ```
 
-### Running Tests Locally
+### Running Tests
 
 ```bash
-uv run pytest -v                    # All tests
+# Via Make (recommended)
+make test                           # Run in Docker (default)
+make test-local                     # Run locally with uv
+
+# Direct pytest usage
+uv run pytest -v                    # All tests locally
 uv run pytest tests/test_foo.py -v  # Single test file
 uv run pytest -k "test_name" -v     # Tests matching pattern
 ```

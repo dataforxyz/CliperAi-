@@ -80,7 +80,8 @@ def test_full_generation():
 
     print("\n" + "=" * 80 + "\n")
 
-    return result
+    assert result is not None
+    assert result["success"], f"Generation failed: {result.get('error_message', 'Unknown error')}"
 
 
 if __name__ == "__main__":
